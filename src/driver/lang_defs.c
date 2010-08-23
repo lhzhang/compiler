@@ -160,7 +160,7 @@ static phase_info_t phase_info[] = {
    {'a',  0x0000003000000000LL,	"",	"",		FALSE},	/* any_as */
 
    {'d',  0x0000008000000000LL, "dsm_prelink", PHASEPATH,FALSE},/* dsm_prelink*/
-   {'j',  0x0000010000000000LL,	"ipa_link", PHASEPATH,TRUE},	/* ipa_link */
+   {'j',  0x0000010000000000LL,	"ipa_driver", PHASEPATH,TRUE},	/* ipa_link */
    {'l',  0x0000020000000000LL,	"collect2", GNUPHASEPATH,TRUE},	/* collect */
    {'l',  0x0000040000000000LL,	NAMEPREFIX "cc", BINPATH, FALSE}, /* ld - now call pathcc & linker directly*/
    {'l',  0x0000080000000000LL,	NAMEPREFIX "CC", BINPATH, FALSE}, /* ldplus */

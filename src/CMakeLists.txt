@@ -33,7 +33,7 @@ ADD_SUBDIRECTORY(libfereconf)
 endif()
 ADD_SUBDIRECTORY(wgen)
 ADD_SUBDIRECTORY(ipa)
-ADD_SUBDIRECTORY(ipa_link)
+ADD_SUBDIRECTORY(ipa_driver)
 # TODO : Threading and other things need to be ported
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 ADD_SUBDIRECTORY(libopenmp)
