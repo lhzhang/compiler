@@ -313,8 +313,8 @@ process_whirl (an_object_file_ptr p_obj, int nsec, const Shdr* section_table,
     int                    found_summary = 0;
     int                    pu_section_idx = 0;
 
-    if (ld_ipa_opt[LD_IPA_HIDES].flag == HS_DEFAULT)
-	ld_ipa_opt[LD_IPA_HIDES].flag = HS_EXPORTS;
+    if (ipa_opt[IPA_HIDES].flag == HS_DEFAULT)
+	ipa_opt[IPA_HIDES].flag = HS_EXPORTS;
 
     for (i = 1; i < nsec; i++) {
 	if (check_whirl_revision &&

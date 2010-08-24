@@ -447,13 +447,10 @@ typedef unsigned short	ELF_SECTION;
     wait((int *)(stat))	       
 	       
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 extern void msg(int, int, ...);
 
-extern string concat_names(const string, const string);
+extern char* concat_names(const char *, const char *);
 
 extern EXTSYM *
 slookup_mext(char *);
@@ -463,8 +460,5 @@ extern void read_one_section (int, an_object_file_ptr);
 extern void 
 merge_ext(an_elf_sym_record *, char *, int, an_object_file *);
 
-#ifdef __cplusplus
-} /* Close extern "C" */
-#endif
 
 #endif /* __PROCESS_H__ */

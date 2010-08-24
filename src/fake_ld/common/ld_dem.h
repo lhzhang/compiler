@@ -25,15 +25,8 @@
 #ifndef __DEM_H__
 #define __DEM_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-    
 extern char* always_demangle (char*, char);
 
-#ifdef __cplusplus
-}
-#endif
 
 
 #endif /* __DEM_H__ */

@@ -637,7 +637,7 @@ void ipacom_doit (const char* ipaa_filename)
     }
 
     // If we're compiling with -show, make sure we see the link line.
-    if (ld_ipa_opt[LD_IPA_SHOW].flag) {
+    if (ipa_opt[IPA_SHOW].flag) {
 	arguments.push_back("-show");
     }
 
@@ -645,7 +645,7 @@ void ipacom_doit (const char* ipaa_filename)
   }
 
   // Temps cleanup
-  if (!ld_ipa_opt[LD_IPA_KEEP_TEMPS].flag) {
+  if (!ipa_opt[IPA_KEEP_TEMPS].flag) {
     vector<const char*>::iterator i;
     for (i = infiles->begin(); i != infiles->end(); ++i)
       unlink(*i);
@@ -676,7 +676,7 @@ static vector<std::string> get_extra_args(const char* ipaa_filename)
   vector<std::string> args;
   args.reserve(16);
   
-  switch (ld_ipa_opt[LD_IPA_SHARABLE].flag) {
+  switch (ipa_opt[IPA_SHARABLE].flag) {
   case F_MAKE_SHARABLE:
     args.push_back("-TENV:PIC");
     break;
@@ -695,10 +695,10 @@ static vector<std::string> get_extra_args(const char* ipaa_filename)
   
   // -IPA:keeplight:=ON, which is the default, means that we keep only
   // the .I files, not the .s files.
-  if (ld_ipa_opt[LD_IPA_KEEP_TEMPS].flag && !IPA_Enable_Keeplight)
+  if (ipa_opt[IPA_KEEP_TEMPS].flag && !IPA_Enable_Keeplight)
     args.push_back("-keep");
 
-  if (ld_ipa_opt[LD_IPA_SHOW].flag)
+  if (ipa_opt[IPA_SHOW].flag)
     args.push_back("-show");
 
 
@@ -785,7 +785,7 @@ static void get_extra_symtab_args(const ARGV& argv)
     // from the link line alone to determine whether the symtab should be
     // compiled shared or nonshared.  We have to look at how one of the other
     // files was compiled.
-    if (ld_ipa_opt[LD_IPA_SHARABLE].flag == F_RELOCATABLE &&
+    if (ipa_opt[IPA_SHARABLE].flag == F_RELOCATABLE &&
                 IPA_Enable_Relocatable_Opt != TRUE) {
       const char* const non_shared_flag = "-non_shared";
       if (strcmp(*i, non_shared_flag) == 0)

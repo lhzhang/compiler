@@ -38,26 +38,24 @@ extern "C" {
  * ipa.
  */
 
-typedef enum{
-    LD_IPA_SHARABLE, 
-    LD_IPA_DEMANGLE, 
-    LD_IPA_SHOW, 
-    LD_IPA_HIDES, 
-    LD_IPA_TARGOS, 
-    LD_IPA_VERBOSE, 
-    LD_IPA_KEEP_TEMPS, 
-    LD_IPA_ISA,
-    LD_IPA_XXXX, 
-    MAX_LD_IPA
-}ld_ipa_option_enum;
 
-typedef struct ld_ipa_option {
-    ld_ipa_option_enum opt_ndx;
+typedef enum{
+    IPA_SHARABLE, 
+    IPA_DEMANGLE, 
+    IPA_SHOW, 
+    IPA_KEEP_TEMPS,
+    IPA_HIDES, 
+    IPA_VERBOSE,
+    MAX_IPA_OPT
+}ipa_option_enum;
+
+typedef struct ipa_option {
+    ipa_option_enum opt_ndx;
     unsigned    flag		: 4;    /*  */
     unsigned     set		: 4;    /*  */
-} LD_IPA_OPTION;
+} IPA_OPTION;
 
-extern LD_IPA_OPTION ld_ipa_opt[MAX_LD_IPA];
+extern IPA_OPTION ipa_opt[MAX_IPA_OPT];
 
 #define HS_DEFAULT 0
 #define HS_HIDES 1
@@ -104,8 +102,8 @@ typedef enum {
 extern string tos_string[TOS_MAX];
 
 #ifdef _SUPPORT_IPA
-#define verboseflag ld_ipa_opt[LD_IPA_VERBOSE].flag
-#define keep	    ld_ipa_opt[LD_IPA_KEEP_TEMPS].flag
+#define verboseflag ipa_opt[IPA_VERBOSE].flag
+#define keep	    ipa_opt[IPA_KEEP_TEMPS].flag
 #endif
 
 extern char *outfilename;

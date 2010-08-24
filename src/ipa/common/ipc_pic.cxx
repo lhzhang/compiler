@@ -207,8 +207,8 @@ struct PIC_OPT
 void
 Pic_optimization ()
 {
-    INT f_call_shared = (ld_ipa_opt[LD_IPA_SHARABLE].flag == F_CALL_SHARED);
-    INT hs_ignore = (ld_ipa_opt[LD_IPA_HIDES].flag == HS_IGNORE);
+    INT f_call_shared = (ipa_opt[IPA_SHARABLE].flag == F_CALL_SHARED);
+    INT hs_ignore = (ipa_opt[IPA_HIDES].flag == HS_IGNORE);
 
     PIC_OPT pic_opt (f_call_shared, hs_ignore);
     For_all (St_Table, GLOBAL_SYMTAB, pic_opt);
@@ -264,7 +264,7 @@ struct fix_static_func
 void
 Fix_up_static_functions ()
 {
-    For_all (St_Table, GLOBAL_SYMTAB, fix_static_func (ld_ipa_opt[LD_IPA_SHARABLE].flag));
+    For_all (St_Table, GLOBAL_SYMTAB, fix_static_func (ipa_opt[IPA_SHARABLE].flag));
     Verify_SYMTAB (GLOBAL_SYMTAB);
 } // Fix_up_static_functions 
 
@@ -655,7 +655,7 @@ struct count_WHIRL_external_gots
 	 * if so, need got
  	 * else not
 	 */
-	if (ld_ipa_opt[LD_IPA_SHARABLE].flag == F_CALL_SHARED) {
+	if (ipa_opt[IPA_SHARABLE].flag == F_CALL_SHARED) {
 	    /* All defined symbol whose addresses are taken will NOT
 	     * have a GOT since those addresses would not be moved 
 	     * ie no .dynrel entry will be generated for them

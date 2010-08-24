@@ -131,7 +131,7 @@ ipa_dot_so_init ()
 	
     Set_FILE_INFO_ipa (File_info);	// mark the symtab IPA-generated
     
-    if (ld_ipa_opt[LD_IPA_SHARABLE].flag == F_CALL_SHARED_RELOC)
+    if (ipa_opt[IPA_SHARABLE].flag == F_CALL_SHARED_RELOC)
         IPA_Enable_Relocatable_Opt = TRUE;
 
 } /* ipa_dot_so_init */
@@ -204,7 +204,7 @@ ipa_driver (INT argc, char **argv)
         IP_update_space_status64();
 #endif
 
-    if (ld_ipa_opt[LD_IPA_SHARABLE].flag & F_STATIC) {
+    if (ipa_opt[IPA_SHARABLE].flag & F_STATIC) {
 	IPA_Enable_Picopt = FALSE;
 	IPA_Enable_AutoGnum = FALSE;
     }

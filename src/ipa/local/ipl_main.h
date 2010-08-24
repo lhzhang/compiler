@@ -29,9 +29,6 @@
 #ifndef ipl_main_INCLUDED
 #define ipl_main_INCLUDED
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* General progress trace: */
 extern BOOL Trace_IPA;
@@ -49,9 +46,6 @@ extern UINT32 IPL_Ignore_Small_Loops;
 extern struct DU_MANAGER *Ipl_Du_Mgr;
 extern struct ALIAS_MANAGER *Ipl_Al_Mgr;
 
-#ifdef __cplusplus
-}
-#endif
 
 extern BOOL DoPreopt;
 

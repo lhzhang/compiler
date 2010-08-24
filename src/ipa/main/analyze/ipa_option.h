@@ -60,9 +60,6 @@
 #include "ipa_trace.h"
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifndef _LIGHTWEIGHT_INLINER
 #ifndef __DEM_H__
@@ -103,10 +100,7 @@ extern INT32 OPT_Cyg_Instrument;     /* Limits DFE if on */
 #endif /* __STANDALONE_INLINER */
 #endif
     
-extern void Process_IPA_Options ( INT argc, char **argv );
+extern "C" void Process_IPA_Options ( INT argc, char **argv );
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* ipa_option_INCLUDED */

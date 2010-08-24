@@ -198,10 +198,10 @@ Process_IPA_Options ( INT argc, char **argv )
     /* Any IPA TLOG trace flags set? */
     Trace_Perf = Get_Trace (TP_PTRACE1, TP_PTRACE1_INL|TP_PTRACE1_IPA);
     Trace_IPA = Get_Trace ( TP_IPA, IPA_TRACE_IPA );
-    Verbose = ld_ipa_opt[LD_IPA_SHOW].flag;
-    Demangle = ld_ipa_opt[LD_IPA_DEMANGLE].flag;
+    Verbose = ipa_opt[IPA_SHOW].flag;
+    Demangle = ipa_opt[IPA_DEMANGLE].flag;
 
-    if (ld_ipa_opt[LD_IPA_SHARABLE].flag & F_STATIC) {
+    if (ipa_opt[IPA_SHARABLE].flag & F_STATIC) {
 	IPA_Enable_Picopt = FALSE;
 	IPA_Enable_AutoGnum = FALSE;
     }

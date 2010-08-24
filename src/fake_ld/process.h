@@ -28,9 +28,6 @@
 #ifndef __PROCESS_H__
 #define __PROCESS_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 extern string tmpdir;
 
@@ -62,8 +59,5 @@ extern char * always_demangle(char *, char );
 
 extern char *__Release_ID;
 
-#ifdef __cplusplus
-} /* Close extern "C" */
-#endif
 
 #endif /* __PROCESS_H__ */

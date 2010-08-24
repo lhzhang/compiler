@@ -3,6 +3,8 @@
 
 #include <sys/types.h>
 
+#include "errors.h"
+
 extern void *(*p_ipa_open_input)(char *, off_t *);
 extern void (*p_ipa_init_link_line)(int, char **);
 extern void (*p_ipa_add_link_flag)(const char*);
@@ -38,6 +40,8 @@ typedef struct ipa_option {
 
 extern IPA_OPTION ipa_opt[MAX_IPA_OPT];
 
+
+#define MALLOC_ASSERT(addr) Is_True(addr != 0, "Malloc failed") 
 
 #endif //IPA_COMMAND_LINE_H_INCLUDED
 

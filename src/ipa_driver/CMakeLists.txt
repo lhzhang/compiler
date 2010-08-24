@@ -3,6 +3,7 @@ set(IPA_DRIVER_SRCS
 "ipa_driver_main.cxx"
 "ipa_command_line.cxx"
 "ipa_symbols_sync.cxx"
+"ipa_helper_functions.cxx"
 )
 
 

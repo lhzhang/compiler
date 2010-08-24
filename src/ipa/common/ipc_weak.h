@@ -56,7 +56,7 @@
 #endif /* __PASS1_H__ */
 
 #ifdef __IPA_OPTION_H__
-#pragma weak ld_ipa_opt
+#pragma weak ipa_opt
 #pragma weak ipacom_flags
 #pragma weak WB_flags
 #pragma weak Y_flags
@@ -85,13 +85,14 @@
 #endif /* __OBJ_FILE_H__ */
 
 #ifdef __PROCESS_H__
-extern int create_tmpdir (int) __attribute__((weak));
+/*extern int create_tmpdir (int) __attribute__((weak));
 extern string create_unique_file (const string, char) __attribute__((weak));
 extern string create_tmp_file (const string) __attribute__((weak));
 extern void add_to_tmp_file_list (string) __attribute__((weak));
 extern string tmpdir __attribute__((weak));
 extern string *get_command_line (an_object_file_ptr, string, string, int*) __attribute__((weak));
 extern int make_link (const string, const string) __attribute__((weak));
+*/
 #endif /* __PROCESS_H__ */
 
 #ifdef __LD_UTIL_H__

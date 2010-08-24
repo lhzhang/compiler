@@ -40,6 +40,7 @@ char **environ_vars;		    /* list of environment variables */
 char *psclp_arg = NULL;	// PathScale subscription
 
 char * outfilename = "./a.out";
+char * tmpdir;
 
 #define          F_RELOCATABLE       1
 #define          F_NON_SHARED        2
@@ -54,9 +55,6 @@ char * outfilename = "./a.out";
 
 
 IPA_OPTION ipa_opt[] = {
-/************************************************/
-/*  ld_ipa_option_enum	    flag	    set */
-/************************************************/
     {IPA_SHARABLE, 	    F_CALL_SHARED,  F_CALL_SHARED}, 
     {IPA_DEMANGLE, 	    0,		    0}, 
     {IPA_SHOW, 	    0,		    0}, 
@@ -66,7 +64,6 @@ IPA_OPTION ipa_opt[] = {
 };
 
 
-#define MALLOC_ASSERT(addr) Is_True(addr != 0, "Malloc failed") 
 
 /*******************************************************
 	Function: ipa_copy_of
@@ -89,25 +86,6 @@ ipa_copy_of (char *str)
 
 
 
-/*******************************************************
-	Function: concat_names
-
-	Create a new string by concating 2 other strings.
-
- *******************************************************/
-char * concat_names(const char * name1, const char * name2)
-{
-    char *mangled_name = NULL;
-    int len = strlen(name1)+strlen(name2)+1;
-
-    mangled_name = (char *)malloc(len);
-    MALLOC_ASSERT(mangled_name);
-
-    strcpy(mangled_name, name1);
-    strcat(mangled_name, name2);
-
-    return(mangled_name);
-}
 
 static int ipa_realloc_option (char **argv )
 {

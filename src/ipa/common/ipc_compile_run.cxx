@@ -47,7 +47,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "linker.h"                     // for ld_ipa_opt options   
+#include "linker.h"                    
 #include "cmplrs/rcodes.h"              // for RC_* codes
 
 #include "ipc_compile_run.h"
@@ -61,13 +61,13 @@ static void ipc_execv(std::vector<std::string> arguments)
     for(i = 0; i < arguments.size() ; i++ ){
         argv[i] = (char*) malloc(arguments[i].length() * sizeof(char) + 1);
         strcpy(argv[i], arguments[i].c_str());
-        if(ld_ipa_opt[LD_IPA_SHOW].flag){
+        if(ipa_opt[IPA_SHOW].flag){
             fprintf(stderr,"%s ", argv[i]);
         }
     }
     argv[i] = NULL;
 
-    if(ld_ipa_opt[LD_IPA_SHOW].flag){
+    if(ipa_opt[IPA_SHOW].flag){
         fprintf(stderr,"\n");
     }
 
