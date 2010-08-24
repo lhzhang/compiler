@@ -1,3 +1,27 @@
+/*
+   Copyright (C) 2010 PathScale Inc. All Rights Reserved.
+*/
+/*
+ * Copyright (C) 2006, 2007. PathScale Inc. All Rights Reserved.
+ */
+
+/*
+
+   Path64 is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published by
+   the Free Software Foundation version 3
+
+   Path64 is distributed in the hope that it will be useful, but WITHOUT
+   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+   License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with Path64; see the file COPYING.  If not, write to the Free
+   Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
+   02110-1301, USA.
+
+*/
 #include <elf.h>
 #include <string.h>
 #include <stdlib.h>
@@ -555,7 +579,7 @@ int ipa_search_command_line(int argc, char **argv, char **envp)
     (*p_ipa_init_link_line) (0, NULL);
 
     for (i=1;i<argc;i++) {
-	bool is_elf;
+	bool is_elf = false;
 
     	char *string = argv[i];
     	if (*string == '-' && string[1] == '-') {
