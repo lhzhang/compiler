@@ -65,6 +65,7 @@ SET(PATHSCALE_CG_COMMON_SRCS
 			"../../be/cg/cg_loop.cxx"
 			"../../be/cg/cg_loop_mii.cxx"
 			"../../be/cg/cg_loop_scc.cxx"
+			"../../be/cg/cg_minir.cxx"
 			"../../be/cg/cgprep.cxx"
 			"../../be/cg/cg_region.cxx"
 			"../../be/cg/cg_sched_est.cxx"

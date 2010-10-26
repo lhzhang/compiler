@@ -216,6 +216,7 @@ static PDESC Phases[] = {
   { TP_PSGCM,		"PSG",	"Post Schedule Global code motion" },
   { TP_THR,		"THR",	"Tree-Height Reduction" },
   { TP_EMIT,		"EMT",	"Code emission" },
+  { TP_MINIR,		"MNR",	"MiniIR" },
 
 #ifdef TARG_ST
   { TP_SSA,		"SSA",	"SSA form" },

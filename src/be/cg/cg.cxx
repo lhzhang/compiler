@@ -143,6 +143,9 @@
 #include "ExportFromBackEnd.h"
 #endif
 
+#include "cg_minir.h"
+
+
 MEM_POOL MEM_local_region_pool;	/* allocations local to processing a region */
 MEM_POOL MEM_local_region_nz_pool;
 
@@ -1015,6 +1018,12 @@ CG_Generate_Code(
     DfgForIse::ExportFromBackEndForIse();
   }
 #endif
+
+#if 0 // need to find a trace code
+  if (Get_Trace (TP_MINIR, 0x1000000))
+#endif
+    CG_Dump_Minir(TP_MINIR, "Before register allocation, scheduling", TFile);
+
 
   /* Global register allocation, Scheduling:
    *

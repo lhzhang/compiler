@@ -2754,7 +2754,6 @@ static BOOL OP_defs_argument( OP* op )
   return FALSE;
 }
 #endif
-#ifdef TARG_ST
 /* =======================================================================
  *
  *  BB_call_clobbered
@@ -2768,6 +2767,7 @@ REGISTER_SET BB_call_clobbered(BB *bb, ISA_REGISTER_CLASS rc)
   if (!BB_call(bb)) {
     return REGISTER_SET_EMPTY_SET;
   }
+#ifdef TARG_ST
   if (GRA_use_interprocedural_info) {
     ANNOTATION *annot = ANNOT_Get(BB_annotations(bb),ANNOT_CALLINFO);
     if (annot) {
@@ -2785,9 +2785,9 @@ REGISTER_SET BB_call_clobbered(BB *bb, ISA_REGISTER_CLASS rc)
       }
     }
   }
+#endif
   return REGISTER_CLASS_caller_saves(rc);
 }
-#endif
 
 
 /* =======================================================================
