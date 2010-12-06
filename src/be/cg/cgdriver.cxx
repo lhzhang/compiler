@@ -142,6 +142,7 @@ extern char *WHIRL_File_Name;
 
 /* Output requested: */
 BOOL Assembly =	FALSE;		/* Assembly code */
+BOOL MiniR_Code = FALSE;        /* MiniR code */
 BOOL Lai_Code = FALSE;          /* Lai code */
 BOOL Object_Code = FALSE;	/* Object code */
 
@@ -159,6 +160,7 @@ static char *Argv0;		    /* argv[0] from main */
 
 /* Default file	extensions: */
 #define	ASM_FILE_EXTENSION ".s"	/* Assembly code file */
+#define MINIR_FILE_EXTENSION ".minir"        /* MiniR file */
 #define LAI_FILE_EXTENSION ".lai"        /* LAI file */
 #define	OBJ_FILE_EXTENSION ".o"	/* Relocatable object file */
 #define DSTDUMP_FILE_EXTENSION ".be.dst" /* DST dump-file extension */
@@ -2472,6 +2474,10 @@ Process_Command_Line (INT argc, char **argv)
 		    Assembly = TRUE;
 		    Asm_File_Name = cp + 2;
 		    break;
+		case 'm':           /* MiniR file */
+		    MiniR_Code = TRUE;
+		    MiniR_File_Name = cp + 2;
+		    break;
 
 		case 'o':	    /* object file */
 		    Object_Code = TRUE;
@@ -2497,6 +2503,7 @@ Process_Command_Line (INT argc, char **argv)
 	    }
 	}
     }
+    FmtAssert(!(MiniR_Code && (Object_Code || Assembly)), ("Object_Code & Assembly incorrect if MiniR enabled"));
 }
 
 /* ====================================================================
@@ -2531,10 +2538,18 @@ Prepare_Source (void)
 	    /* Replace source file extension to get assembly file name: */
 	    Asm_File_Name = New_Extension (fname, ASM_FILE_EXTENSION );
 	}
-
 	/* Open	the ASM	file for compilation: */
 	if ( ( Asm_File	= fopen	( Asm_File_Name, "w" ) ) == NULL ) {
 	    ErrMsg ( EC_Asm_Open, Asm_File_Name, errno );
+	    Terminate (1);
+	}
+    }
+    if ( MiniR_Code ) {
+	if ( MiniR_File_Name == NULL ) {
+	    MiniR_File_Name = New_Extension (fname, MINIR_FILE_EXTENSION );
+	}
+	if ( ( MiniR_File = fopen ( MiniR_File_Name, "w" ) ) == NULL ) {
+	    ErrMsg ( EC_Asm_Open, MiniR_File_Name, errno );
 	    Terminate (1);
 	}
     }
@@ -3094,7 +3109,7 @@ CG_Fini (void)
 
     Set_Error_Phase ( "Codegen Emit" );
     /* Finish off the relocatable object file: */
-    EMT_End_File();
+    if (!MiniR_Code) EMT_End_File();
     MEM_POOL_Delete (&MEM_local_region_pool);
     MEM_POOL_Delete (&MEM_local_region_nz_pool);
 

@@ -128,6 +128,7 @@
 
 #include "calls.h"
 #include "cgemit.h"
+#include "cg_minir.h"
 #include "cgtarget.h"
 #include "irbdata.h"
 #include "em_elf.h"
@@ -172,6 +173,7 @@
 
 #include "main_defs.h"
 
+// Huge ifdef here /!\ BEGIN_TARG_ST_IFDEF
 #ifdef TARG_ST
 BE_EXPORTED extern void Early_Terminate (INT status);
 
@@ -474,135 +476,6 @@ ST_is_gp_relative (
 	  ST_gprel(base_st));
 }
 
-/* ====================================================================
- *    Init_Section (st)
- *
- *    Initialize a section.
- * ====================================================================
- */
-#define Is_Text_Section(st) (STB_exec(st) && strncmp(ST_name(st), ELF_TEXT,5)==0)
-
-static void
-Init_Section (
-  ST *st
-)
-{
-  Elf64_Word scn_type;
-  Elf64_Word scn_flags;
-  Elf64_Xword scn_entsize;
-  char sname[32];
-
-  if (ST_elf_index(st) != 0) {
-    /* already created */
-    return;
-  }
-
-  if (last_scn >= (max_scn-1)) {
-    /* allocate new block of sections */
-    max_scn += 30;
-    if (em_scn == NULL)
-      em_scn = (AUX_SCN *)Src_Alloc(sizeof(AUX_SCN)*max_scn);
-    else
-      em_scn = TYPE_MEM_POOL_REALLOC_N (AUX_SCN, 
-		         &MEM_src_pool, em_scn, (max_scn-30), max_scn);
-  }
-  last_scn++;
-  Set_STB_scninfo_idx(st, last_scn);
-
-  /* hack for .text section */
-#ifdef TARG_ST
-  // (cbr) exectutable sections should be text aligned
-  // [CG] Minimal alignment of text segment is DEFAULT_TEXT_ALIGNMENT.
-  if (STB_exec (st)) {
-    int text_align;
-    if (Align_Instructions) 
-      text_align = Align_Instructions;
-    else if (EMIT_space)
-      text_align = DEFAULT_TEXT_ALIGNMENT;
-    else 
-      text_align = CGTARG_Text_Alignment();
-    if (text_align < DEFAULT_TEXT_ALIGNMENT) text_align = DEFAULT_TEXT_ALIGNMENT;
-    Set_STB_align(st, text_align);
-  }
-#else
-  if (Is_Text_Section(st)) {
-    if (Align_Instructions) 
-      Set_STB_align(st, Align_Instructions);
-    else if (EMIT_space)
-      Set_STB_align(st, ISA_MAX_INST_BYTES);
-    else
-      Set_STB_align(st, CGTARG_Text_Alignment());
-  }
-#endif
-#ifdef TARG_ST
-  // [CG]: For data sections we may have an alignment
-  // Currently set it to DEFAULT_DATA_ALIGNMENT
-  else {
-    if (STB_align(st) == 0) {
-      /* (cbr) if the section is not used, no alignement has been set */
-      if (STB_size(st))
-        DevWarn("default alignment not set for section %s\n", ST_name(st));
-      Set_STB_align(st, DEFAULT_DATA_ALIGNMENT);
-    }
-  }
-#endif
-
-  /* save symbol for later reference */
-  em_scn[last_scn].sym = st;
-
-#ifdef TARG_ST100
-  /* (cbr) section relative offset using labels only on st100 */
-
-  // Make a label:
-  sprintf(sname, "%s_SECTION_%d", Local_Label_Prefix, last_scn);
-  em_scn[last_scn].label = strdup(sname);
-
-  if (Trace_Init) {
-    fprintf(TFile, "<init>: Section %s: labeling %s\n", 
-	    ST_name(em_scn[last_scn].sym), em_scn[last_scn].label);
-  }
-#endif
-
-  /* assume st is CLASS_BLOCK */
-  scn_type = Get_Section_Elf_Type(STB_section_idx(st));
-  scn_flags = Get_Section_Elf_Flags(STB_section_idx(st));
-  if (Is_Text_Section(st) && 
-      current_pu != (PU_IDX) NULL && PU_in_elf_section(current_pu)) {
-    scn_flags |= SHF_MIPS_NODUPE;
-  }
-
-  scn_entsize = Get_Section_Elf_Entsize(STB_section_idx(st));
-
-  if (generate_elf_symbols) {
-    em_scn[last_scn].scninfo = Em_New_Section (ST_name(st), 
-		  scn_type, scn_flags, scn_entsize, STB_align(st));
-
-    /* initialize elf data buffer. */
-    if (!STB_nobits(st)) {
-      Em_New_Data_Buffer (em_scn[last_scn].scninfo, 
-			  STB_size(st) + 100, 1);
-    }
-    Set_ST_elf_index(st,
-	      Em_Create_Section_Symbol (em_scn[last_scn].scninfo));
-  }
-  else {
-    /* set dummy value just so don't redo this */
-    Set_ST_elf_index(st, 1);
-  }
-
-
-#if 0
-  if (Lai_Code) {
-    LAI_print_section(st, scn_type, scn_flags, scn_entsize, cur_section);
-  }
-#endif
-
-  if (Assembly) {
-    CGEMIT_Prn_Scn_In_Asm(st, scn_type, scn_flags, scn_entsize, cur_section);
-  }
-
-  return;
-}
 
 static unsigned char
 st_other_for_sym (ST *sym)
@@ -811,6 +684,7 @@ r_qualified_name (
 #endif
 }
 
+
 /* ====================================================================
  *    EMT_Write_Qualified_Name (FILE *f, ST *st)
  * ====================================================================
@@ -826,6 +700,8 @@ EMT_Write_Qualified_Name (
   fprintf (f, "%s", vstr_str(buf));
   vstr_end(buf);
 }
+
+
 
 #ifdef TARG_ST
 // [CL] helper functions to generate anonymous constants
@@ -853,6 +729,7 @@ r_qualified_tcon_name (
 		  Label_Name_Separator, ST_index(st));
   }
 }
+#endif
 
 /* ====================================================================
  *    EMT_Write_Qualified_Name (FILE *f, ST *st)
@@ -870,6 +747,7 @@ EMT_Write_Qualified_Tcon_Name (
   vstr_end(buf);
 }
 
+#ifdef TARG_ST
 /* ====================================================================
  *    EMT_Visibility
  *
@@ -918,162 +796,6 @@ void EMT_Visibility (
 }
 #endif
 
-/* ====================================================================
- *    Print_Dynsym (pfile, st)
- *
- *    print the internal, hidden or protected attributes if present 
- * ====================================================================
- */
-static void 
-Print_Dynsym (
-  FILE *pfile, 
-  ST *st
-)
-{
-  if (AS_DYNSYM) {
-    fprintf (pfile, "\t%s\t", AS_DYNSYM != NULL ? AS_DYNSYM : "nil");
-    EMT_Write_Qualified_Name (pfile, st);
-    switch (ST_export(st)) {
-      case EXPORT_INTERNAL:
-	fprintf (pfile, "\tsto_internal\n");
-	break;
-      case EXPORT_HIDDEN:
-	fprintf (pfile, "\tsto_hidden\n");
-	break;
-      case EXPORT_PROTECTED:
-	fprintf (pfile, "\tsto_protected\n");
-	break;
-      case EXPORT_OPTIONAL:
-	fprintf (pfile, "\tsto_optional\n");
-	break;
-      default:
-	fprintf (pfile, "\tsto_default\n");
-	break;
-    }
-  }
-}
-
-/* ====================================================================
- *    Print_Label (pfile, st, size)
- * ====================================================================
- */
-static void 
-Print_Label (
-  FILE *pfile, 
-  ST *st, 
-  INT size
-)
-{
-  ST *base_st;
-  INT64 base_ofst;
-
-  if (ST_is_weak_symbol(st)) {
-    fprintf (pfile, "\t%s\t", AS_WEAK);
-    EMT_Write_Qualified_Name(pfile, st);
-    fprintf(pfile, "\n");
-    EMT_Visibility (pfile, ST_export(st), st);
-  }
-  else if (!ST_is_export_local(st)) {
-    fprintf (pfile, "\t%s\t", AS_GLOBAL);
-    EMT_Write_Qualified_Name(pfile, st);
-    fprintf(pfile, "\n");
-    EMT_Visibility (pfile, ST_export(st), st);
-  }
-#ifdef TARG_ST
-  // [CL] handle the case of generation of symtab.s
-  // in IPA mode. Although local, such symbols must
-  // be 'promoted' to global so that they can be
-  // accessed by the module they belong to
-  else if (ST_is_export_local(st) && Emit_Global_Data) {
-    fprintf (pfile, "\t%s\t", AS_GLOBAL);
-    EMT_Write_Qualified_Name(pfile, st);
-    fprintf(pfile, "\n");
-    // [CL] output as hidden/internal so that we are close to the
-    // export_local meaning
-#ifdef AS_INTERNAL
-    if (ST_export(st) == EXPORT_LOCAL_INTERNAL) {
-      fprintf (pfile, "\t%s\t", AS_INTERNAL);
-      EMT_Write_Qualified_Name(pfile, st);
-      fprintf(pfile, "\n");
-    } else
-#endif
-#ifdef AS_HIDDEN
-      {
-	fprintf (pfile, "\t%s\t", AS_HIDDEN);
-	EMT_Write_Qualified_Name(pfile, st);
-	fprintf(pfile, "\n");
-      }
-#endif
-#endif
-  }
-  if (ST_class(st) == CLASS_VAR) {
-    fprintf (pfile, "\t%s\t", AS_TYPE);
-    EMT_Write_Qualified_Name (pfile, st);
-#ifdef TARG_ST
-#  ifdef AS_MOVEABLE
-    BOOL moveable;
-
-    if (Emit_Global_Data) {
-      /* TB: Tell this symbol is moveable when not in Emit_Global_Data (ipa) */
-      moveable = FALSE;
-    }
-    else if (ST_is_initialized (st)) {
-      /* [SC]: Not moveable if initializer is larger than symbol size */
-      INITV_IDX inito_idx = ST_has_inito (st);
-      if (inito_idx != 0 && Get_INITO_Size (inito_idx) > size)
-	moveable = FALSE;
-      else
-	moveable = TRUE;
-    }
-    else {
-      moveable = TRUE;
-    }
-    
-    fprintf (pfile, ", %s", AS_TYPE_OBJECT);
-    if (moveable) {
-      fprintf (pfile, ", %s", AS_MOVEABLE);
-    }
-#  ifdef AS_USED
-    /* TB: add gnu used  attibute when needed */
-    if (ST_is_used(st)) {
-      fprintf (pfile, ", %s", AS_USED);
-    }
-#endif
-    fprintf (pfile, "\n");
-#  else //AS_MOVEABLE
-    fprintf (pfile, ", %s\n", AS_TYPE_OBJECT);
-#  endif
-#else
-    fprintf (pfile, ", %s\n", AS_TYPE_OBJECT);
-#endif    
-  }
-  if (size != 0) {
-    /* if size is given, then emit value for asm */
-    fprintf (pfile, "\t%s\t", AS_SIZE);
-    EMT_Write_Qualified_Name(pfile, st);
-    fprintf (pfile, ", %d\n", size);
-  }
-#ifdef TARG_ST
-  if (Base_Offset_Is_Known (st)) {
-    Base_Symbol_And_Offset (st, &base_st, &base_ofst);
-  } else {
-    base_st = st; base_ofst = 0;
-  }
-#else
-  Base_Symbol_And_Offset (st, &base_st, &base_ofst);
-#endif
-  EMT_Write_Qualified_Name (pfile, st);
-#ifdef TARG_ST
-  if (List_Notes) {
-    fprintf (pfile, ":\t%s 0x%llx\n", ASM_CMNT_LINE, base_ofst);
-  } else {
-    fprintf (pfile, ":\n");
-  }
-#else
-  fprintf (pfile, ":\t%s 0x%llx\n", ASM_CMNT_LINE, base_ofst);
-#endif
-  Print_Dynsym (pfile, st);
-}
 
 /* ====================================================================
  *    Print_Common
@@ -1181,7 +903,7 @@ EMT_Put_Elf_Symbol (
     // if only .s file, then just do dummy mark that we have
     // seen this symbol and emitted any type info for it.
     if (ST_class(sym) == CLASS_FUNC) {
-      if (Assembly || Lai_Code) {
+      if (Assembly || Lai_Code || MiniR_Code) {
 #ifdef TARG_ST
         // (cbr)
 	  if (ST_sclass(sym) == SCLASS_EXTERN) 
@@ -1201,25 +923,25 @@ EMT_Put_Elf_Symbol (
 	      EMT_Visibility (Asm_File, ST_export(sym), sym);
 	  }
 #endif
-	fprintf (Asm_File, "\t%s\t", AS_TYPE);
-	EMT_Write_Qualified_Name (Asm_File, sym);
-	fprintf (Asm_File, ", %s\n", AS_TYPE_FUNC);
+	fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_TYPE);
+	EMT_Write_Qualified_Name (MiniR_Code ? MiniR_File : Asm_File, sym);
+	fprintf (MiniR_Code ? MiniR_File : Asm_File, ", %s\n", AS_TYPE_FUNC);
       }
     }
     else if (ST_class(sym) == CLASS_VAR && 
 	     ST_sclass(sym) == SCLASS_COMMON) {
-      if (Assembly || Lai_Code) {
-	Print_Common (Asm_File, sym);
+      if (Assembly || Lai_Code || MiniR_Code) {
+	Print_Common (MiniR_Code ? Asm_File : MiniR_File, sym);
       }
     }
 #ifdef TARG_ST
     // (cbr) need to emit .weak for extern symbols as well
     else if (ST_class(sym) == CLASS_VAR &&
 	     ST_sclass(sym) == SCLASS_EXTERN) {
-      if (Assembly || Lai_Code) {
+      if (Assembly || Lai_Code || MiniR_Code) {
         if (ST_is_weak_symbol(sym)) {
           fprintf ( Asm_File, "\t%s\t", AS_WEAK);
-          EMT_Write_Qualified_Name(Asm_File, sym);
+          EMT_Write_Qualified_Name( Asm_File, sym);
           fprintf ( Asm_File, "\n");
         }
 	else {
@@ -1326,14 +1048,14 @@ EMT_Put_Elf_Symbol (
 #endif
 	  if (Assembly) {
 	    if (ST_is_weak_symbol(sym)) {
-	      fprintf ( Asm_File, "\t%s\t", AS_WEAK);
-	      EMT_Write_Qualified_Name(Asm_File, sym);
-	      fprintf ( Asm_File, "\n");
+	      fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_WEAK);
+	      EMT_Write_Qualified_Name( MiniR_Code ? MiniR_File : Asm_File, sym);
+	      fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\n");
 	    }
 	    else {
-	      fprintf(Asm_File, "\t%s\t", AS_GLOBAL);
-	      EMT_Write_Qualified_Name(Asm_File, sym);
-	      fprintf ( Asm_File, "\n");
+	      fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_GLOBAL);
+	      EMT_Write_Qualified_Name(MiniR_Code ? MiniR_File : Asm_File, sym);
+	      fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\n");
 	    }
 #ifdef TARG_ST
 	    EMT_Visibility ( Asm_File, ST_export(sym), sym);
@@ -1347,6 +1069,9 @@ EMT_Put_Elf_Symbol (
 	  }
 	  if (Assembly) {
 		Print_Common (Asm_File, sym);
+	  }
+	  if (MiniR_Code) {
+	    Print_Common (MiniR_File, sym);
 	  }
 	  if (generate_elf_symbols) {
 	    if (ST_is_split_common(sym)) {
@@ -1390,14 +1115,14 @@ EMT_Put_Elf_Symbol (
 			ST_name(sym), symbind, STT_FUNC, symother);
 	if (Assembly) {
 	  if (ST_is_weak_symbol(sym)) {
-	    fprintf ( Asm_File, "\t%s\t", AS_WEAK);
-	    EMT_Write_Qualified_Name(Asm_File, sym);
-	    fprintf ( Asm_File, "\n");
+	    fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_WEAK);
+	    EMT_Write_Qualified_Name(MiniR_Code ? MiniR_File : Asm_File, sym);
+	    fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\n");
 	  }
 	  else {
-	    fprintf(Asm_File, "\t%s\t", AS_GLOBAL);
-	    EMT_Write_Qualified_Name(Asm_File, sym);
-	    fprintf ( Asm_File, "\n");
+	    fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_GLOBAL);
+	    EMT_Write_Qualified_Name(MiniR_Code ? MiniR_File : Asm_File, sym);
+	    fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\n");
 	  }
 #ifdef TARG_ST
 	  EMT_Visibility (Asm_File, ST_export(sym), sym);
@@ -1458,387 +1183,6 @@ Trace_Init_Loc ( INT scn_idx, Elf64_Xword scn_ofst, INT32 repeat)
   return;
 }
 
-#ifdef KEY
-static int exception_table_id=0;
-const char *lsda_ttype_base = ".LSDATTYPEB";
-const char *lsda_ttype_disp = ".LSDATTYPED";
-const char *lsda_cs_begin = ".LSDACSB";
-const char *lsda_cs_end = ".LSDACSE";
-
-static Elf64_Word Write_Diff (LABEL_IDX, LABEL_IDX, INT, Elf64_Word);
-
-static Elf64_Xword Handle_EH_Region_Length (LABEL_IDX l, 
-				INT scn_idx, Elf64_Xword scn_ofst)
-{
-    static bool first_label_seen = false;
-    static LABEL_IDX first_label=0;
-
-    // process exception region length
-    if (!first_label_seen)
-    {
-	FmtAssert (first_label==0,("EH table processing error"));
-	first_label_seen = true;
-	first_label = l;
-    }
-    else
-    {// this is the 2nd label
-	FmtAssert (first_label!=0,("EH table processing error"));
-	scn_ofst = Write_Diff (first_label, l, scn_idx, scn_ofst);
-	// reset
-	first_label_seen = false;
-	first_label = 0;
-    }
-    return scn_ofst;
-}
-#endif // KEY
-
-/* ====================================================================
- *    Write_TCON
- *
- *    Emit a TCON value to the assembly/object file.
- * ====================================================================
- */
-static Elf64_Word
-Write_TCON (
-  TCON	*tcon,		/* Constant to emit */
-  INT scn_idx,		/* Section to emit it into */
-  Elf64_Xword scn_ofst,	/* Section offset to emit it at */
-  INT32	repeat		/* Repeat count */
-#ifdef KEY
-  , bool etable = 0
-  , int format = 0
-#endif // KEY
-)
-{
-  BOOL add_null = TCON_add_null(*tcon);
-  // pSCNINFO scn = em_scn[scn_idx].scninfo;
-
-  if (Trace_Init) {
-    #pragma mips_frequency_hint NEVER
-    Trace_Init_Loc ( scn_idx, scn_ofst, repeat);
-    fprintf (TFile, "TCON: >>%s<<\n", Targ_Print (NULL, *tcon));
-  }
-
-  if (Assembly || Lai_Code) {
-    INT32 scn_ofst32 = (INT32)scn_ofst;
-    FmtAssert(scn_ofst32 == scn_ofst, 
-       ("section offset exceeds 32 bits: 0x%llx", (INT64)scn_ofst));
-#ifdef KEY
-    if (etable)
-        Targ_Emit_EH_Const ( Asm_File, *tcon, add_null, repeat, scn_ofst32, format );
-    else
-#endif // KEY
-    Targ_Emit_Const (Output_File, *tcon, add_null, repeat, scn_ofst32);
-  } 
-#if 0
-  if (Object_Code) {
-    Em_Targ_Emit_Const ( scn, *tcon, add_null, repeat );
-  }
-#endif
-
-  if ( TCON_ty(*tcon) == MTYPE_STRING )
-    scn_ofst += (Targ_String_Length (*tcon) + (add_null ? 1 : 0)) * repeat;
-  else
-    scn_ofst += TY_size(Be_Type_Tbl(TCON_ty(*tcon))) * repeat;
-
-  return scn_ofst;
-}
-
-/* ====================================================================
- *    Write_Symbol
- *
- *    Emit a symbol value to the assembly/object file.
- * ====================================================================
- */
-static Elf64_Word
-Write_Symbol (
-  ST * sym,		/* Emit the address of this symbol */
-  Elf64_Sxword sym_ofst,/*   ... plus this offset */
-  INT scn_idx,		/* Section to emit it in */
-  Elf64_Word scn_ofst,	/* Section offset to emit it at */
-  INT32	repeat		/* Repeat count */
-#ifdef TARG_ST
-  /* (cbr) support for half address relocation */
-  ,  BOOL halfword = 0  /* Output size */
-#endif
-)
-{
-  INT32 i;
-  ST *basesym;
-  INT64 base_ofst = 0;
-  // pSCNINFO scn = em_scn[scn_idx].scninfo;
-#ifdef TARG_ST
-  /* (cbr) support for half address relocation */
-  INT address_size = halfword ? 2 : ((Use_32_Bit_Pointers) ? 4 : 8);
-#else
-  INT address_size = ((Use_32_Bit_Pointers) ? 4 : 8);
-#endif
-
-  if ( Trace_Init ) {
-    #pragma mips_frequency_hint NEVER
-    Trace_Init_Loc (scn_idx, scn_ofst, repeat);
-    fprintf ( TFile, "SYM " );
-    fprintf ( TFile, "%s %+lld\n", ST_name(sym), sym_ofst );
-  }
-
-  /* make sure is allocated */
-  if (!Has_Base_Block(sym)) {
-    Allocate_Object(sym);
-    /* if did allocate on local stack, that messes up frame length */
-    Is_True(!Has_Base_Block(sym) || Is_Global_Symbol(Base_Symbol(sym)),
-		("Write_Symbol:  too late to allocate object on stack"));
-  }
-
-  /* If the symbol is a local label that has not been assigned an 
-   * address, it is a label in a basic block that has been deleted. 
-   * Emit zeros for this case instead of the address.
-   */
-  if (ST_sclass(sym) == SCLASS_TEXT && !Has_Base_Block(sym)) {
-    INT32 padding;
-    padding = repeat * address_size;
-    if (Assembly && padding > 0) {
-      ASM_DIR_ZERO(Asm_File, padding);
-    }
-#if 0
-    if (Object_Code) {
-      Em_Add_Zeros_To_Scn (scn, padding, 1);
-    }
-#endif
-    scn_ofst += padding;
-    return scn_ofst;
-  }
-
-  /* 
-   * For local static symbols that do not have their own elf entry,
-   * use the base symbol; funcs always have own elf entry. 
-   */
-  basesym = sym;
-  if (Has_Base_Block(sym) && 
-      ST_is_export_local(sym) && 
-#ifdef TARG_ST
-      Base_Offset_Is_Known (sym) &&
-#endif
-      ST_class(sym) != CLASS_FUNC) {
-    Base_Symbol_And_Offset (sym, &basesym, &base_ofst);
-  }
-  if (Use_Separate_PU_Section (current_pu, basesym)) {
-	/* use PU text section rather than generic one */
-	basesym = PU_base;
-  }
-  base_ofst += sym_ofst;
-
-#if 0
-  if (Object_Code && repeat != 0) {
-    if (Use_32_Bit_Pointers) {
-      Em_Add_New_Content (CK_SADDR_32, scn_ofst, 4*repeat, 0, scn);
-    }
-    else {
-      Em_Add_New_Content (CK_SADDR_64, scn_ofst, 8*repeat, 0, scn);
-    }
-  }
-#endif
-
-  for ( i = 0; i < repeat; i++ ) {
-    // do object code first so base section initialized
-#if 0
-    if (Object_Code) {
-	if (ST_sclass(sym) == SCLASS_EH_REGION_SUPP) {
-      		Em_Add_Displacement_To_Scn (scn, EMT_Put_Elf_Symbol (basesym),
-			base_ofst, 1);
-	} else {
-      		Em_Add_Address_To_Scn (scn, EMT_Put_Elf_Symbol (basesym), 
-			base_ofst, 1);
-	}
-    }
-#endif
-    if (Assembly) {
-#ifdef TARG_ST
-      /* (cbr) support for half address relocation */
-      if (halfword)
-        fprintf (Output_File, "\t%s\t",  AS_HALF);
-      else
-#endif
-      fprintf (Output_File, "\t%s\t", 
-	       (scn_ofst % address_size) == 0 ? 
-	       AS_ADDRESS : AS_ADDRESS_UNALIGNED);
-      if (ST_class(sym) == CLASS_CONST) {
-	EMT_Write_Qualified_Name (Output_File, basesym);
-	fprintf (Output_File, " %+lld\n", base_ofst);
-      }
-#ifdef TARG_ST
-      //
-      // Arthur: the way a function pointer is emitted depends on
-      //         whether or not we're generating GP-relative, GOT,
-      //         etc. Does not it ??
-      // clarkes: Yes, so encapsulate that in the AS_FPTR macro.
-      //
-      else if (ST_class(sym) == CLASS_FUNC) {
-	if (AS_FPTR) {
-	  fprintf (Output_File, " %s(", AS_FPTR);
-	}
-	EMT_Write_Qualified_Name (Output_File, sym);
-	fprintf (Output_File, "%+lld", sym_ofst);
-	if (AS_FPTR) {
-	  fputc (')', Output_File);
-	}
-	fputc ('\n', Output_File);
-      }
-#else
-      else if (ST_class(sym) == CLASS_FUNC && AS_FPTR) {
-	fprintf (Output_File, " %s(", AS_FPTR);
-	EMT_Write_Qualified_Name (Output_File, sym);
-	fprintf (Output_File, " %+lld)\n", sym_ofst);
-      }
-#endif
-      else {
-	EMT_Write_Qualified_Name (Output_File, sym);
-	fprintf (Output_File, " %+lld\n", sym_ofst);
-      }
-
-#ifdef TARG_ST
-      // [SC] Make sure the weak attribute is emitted, in case
-      // this is the only reference to the symbol.
-      if (ST_is_weak_symbol(sym)) {
-	fprintf (Output_File, "\t%s\t", AS_WEAK);
-	EMT_Write_Qualified_Name(Output_File, sym);
-	fprintf(Output_File, "\n");
-      }
-#endif
-      if (ST_class(sym) == CLASS_FUNC) {
-	fprintf (Output_File, "\t%s\t", AS_TYPE);
-	EMT_Write_Qualified_Name (Output_File, sym);
-	fprintf (Output_File, ", %s\n", AS_TYPE_FUNC);
-      }
-    }
-
-    scn_ofst += address_size;
-  }
-  return scn_ofst;
-}
-
-/* ====================================================================
- *   Write_Label
- *
- *   Emit a label value to the assembly/object file.
- * ====================================================================
- */
-
-static Elf64_Word
-Write_Label (
-  LABEL_IDX lab,	/* Emit the address of this label */
-  Elf64_Sxword lab_ofst,/*   ... plus this offset */
-  INT scn_idx,		/* Section to emit it in */
-  Elf64_Word scn_ofst,	/* Section offset to emit it at */
-  INT32	repeat		/* Repeat count */
-)
-{
-  INT32 i;
-  INT address_size = ((Use_32_Bit_Pointers) ? 4 : 8);
-
-  for (i = 0; i < repeat; i++) {
-    fprintf (Output_File, "\t%s\t", (scn_ofst % address_size) == 0 ? 
-		                  AS_ADDRESS : AS_ADDRESS_UNALIGNED);
-    fprintf (Output_File, "%s", LABEL_name(lab));
-    if (lab_ofst != 0)
-      fprintf (Output_File, " %+lld", lab_ofst);
-    fprintf (Output_File, "\n");
-    scn_ofst += address_size;
-  }
-#ifdef TARG_ST
-  // [CL]
-  Set_LABEL_emitted(lab);
-#endif
-  return scn_ofst;
-}
-
-/* ====================================================================
- *    Write_Symdiff (lab1, sym2idx, scn_idx, scn_ofst, repeat, size)
- * ====================================================================
- */
-static Elf64_Word
-Write_Symdiff (
-  LABEL_IDX lab1,	/* left symbol */
-  ST_IDX sym2idx,	/* right symbol */
-  INT scn_idx,		/* Section to emit it in */
-  Elf64_Word scn_ofst,	/* Section offset to emit it at */
-  INT32	repeat,		/* Repeat count */
-  INT size		/* 2 or 4 bytes */
-#ifdef KEY
-  , bool etable = 0
-#endif // KEY
-)
-{
-  INT32 i;
-  ST *basesym1;
-  ST *basesym2;
-  INT64 base1_ofst = 0;
-  INT64 base2_ofst = 0;
-  pSCNINFO scn = em_scn[scn_idx].scninfo;
-  ST *sym2 = &St_Table[sym2idx];
-  INT32 val;
-
-  if ( Trace_Init ) {
-    #pragma mips_frequency_hint NEVER
-    Trace_Init_Loc (scn_idx, scn_ofst, repeat);
-    fprintf ( TFile, "SYMDIFF " );
-    fprintf ( TFile, "%s - %s\n", LABEL_name(lab1), ST_name(sym2));
-  }
-
-  /* symbols must have an address */
-  Is_True (lab1, ("cgemit: Symdiff lab1 is null"));
-  Is_True (sym2, ("cgemit: Symdiff sym2 is null"));
-  Is_True (Has_Base_Block(sym2), ("cgemit: Symdiff sym2 not allocated"));
-
-  BB *labb = Get_Label_BB(lab1);
-  basesym1 = BB_cold(Get_Label_BB(lab1)) ? cold_base : text_base;
-  base1_ofst = Get_Label_Offset(lab1);
-#ifdef TARG_ST
-  if (Object_Code) {
-    FmtAssert (Base_Offset_Is_Known (sym2), ("Unknown offset in Write_Symdiff"));
-    
-#endif
-  Base_Symbol_And_Offset (sym2, &basesym2, &base2_ofst);
-  if (Use_Separate_PU_Section(current_pu,basesym2)) {
-	/* use PU text section rather than generic one */
-	basesym2 = PU_base;
-  }
-  Is_True (basesym1 == basesym2, ("cgemit: Symdiff bases not same"));
-  val = base1_ofst - base2_ofst;
-  if (val < 0) val = 0;
-  if (size == 2) {
-	if (val > INT16_MAX) {
-		DevWarn("symdiff value not 16-bits; will try recompiling with -TENV:long_eh_offsets");
-		Early_Terminate (RC_OVERFLOW_ERROR);
-	}
-	val = val << 16;	/* for Add_Bytes */
-  }
-#ifdef TARG_ST
-  } /* Object_Code */
-#endif
-  for ( i = 0; i < repeat; i++ ) {
-    if (Assembly) {
-#ifdef KEY
-      if (etable)
-      	fprintf (Asm_File, "\t.uleb128\t");
-      else
-#endif // KEY
-      fprintf (Output_File, "\t%s\t", (size == 2 ? AS_HALF : AS_WORD));
-      fprintf(Output_File, "%s", LABEL_name(lab1));
-      fprintf (Output_File, "-");
-      EMT_Write_Qualified_Name (Output_File, sym2);
-      fprintf (Output_File, "\n");
-    }
-    if (Object_Code) {
-      Em_Add_Bytes_To_Scn (scn, (char *) &val, size, 1);
-    }
-    scn_ofst += size;
-  }
-#ifdef TARG_ST
-  // [CL]
-  Set_LABEL_emitted(lab1);
-#endif
-  return scn_ofst;
-}
 
 #ifdef TARG_ST
 /* (cbr) DDTSst24451. add support for label diffs initializers */
@@ -1875,8 +1219,8 @@ Write_Labdiff (
   Is_True (lab1, ("cgemit: Labdiff lab1 is null"));
   Is_True (lab2, ("cgemit: Labdiff lab2 is null"));
 
-  basesym1 = BB_cold(Get_Label_BB(lab1)) ? cold_base : text_base;
-  basesym2 = BB_cold(Get_Label_BB(lab2)) ? cold_base : text_base;
+  basesym1 = BB_cold(Get_Label_BB(lab1)) && !MiniR_Code ? cold_base : text_base;
+  basesym2 = BB_cold(Get_Label_BB(lab2)) && !MiniR_Code ? cold_base : text_base;
   base1_ofst = Get_Label_Offset(lab1);
   base2_ofst = Get_Label_Offset(lab2);
 
@@ -1896,12 +1240,12 @@ Write_Labdiff (
   }
 
   for ( i = 0; i < repeat; i++ ) {
-    if (Assembly) {
-      fprintf (Output_File, "\t%s\t", (size == 2 ? AS_HALF : AS_WORD));
-      fprintf(Output_File, "%s", LABEL_name(lab1));
-      fprintf (Output_File, "-");
-      fprintf(Output_File, "%s", LABEL_name(lab2));
-      fprintf (Output_File, "\n");
+    if (Assembly || MiniR_Code) {
+      fprintf (MiniR_Code ? MiniR_file : Output_File, "\t%s\t", (size == 2 ? AS_HALF : AS_WORD));
+      fprintf((MiniR_Code ? MiniR_file : Output_File, "%s", LABEL_name(lab1));
+      fprintf ((MiniR_Code ? MiniR_file : Output_File, "-");
+      fprintf((MiniR_Code ? MiniR_file : Output_File, "%s", LABEL_name(lab2));
+      fprintf ((MiniR_Code ? MiniR_file : Output_File, "\n");
     }
     if (Object_Code) {
       Em_Add_Bytes_To_Scn (scn, (char *) &val, size, 1);
@@ -1944,200 +1288,14 @@ Emit_PIC_version (ST * st, Elf64_Word scn_ofst)
   }
 
 #ifdef TARG_ST
-  fprintf (Asm_File, "\t%s\tDW.ref.%s-.\n", AS_WORD, ST_name (st));
+  fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\tDW.ref.%s-.\n", AS_WORD, ST_name (st));
 #else
-  fprintf (Asm_File, "\t.long\tDW.ref.%s-.\n", ST_name (st));
+  fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t.long\tDW.ref.%s-.\n", ST_name (st));
 #endif
 
   return scn_ofst + 4;
 }
 #endif
-
-/* ====================================================================
- *    Write_INITV
- *
- *    Emit an initial value record to the assembly/object file.
- * ====================================================================
- */
-static Elf64_Word
-#ifdef KEY
-Write_INITV (INITV_IDX invidx, INT scn_idx, Elf64_Word scn_ofst, bool etable=0, int format=0)
-#else
-Write_INITV (INITV_IDX invidx, INT scn_idx, Elf64_Word scn_ofst)
-#endif // KEY
-{
-  INT32 i;
-  INITV_IDX ninv;
-  INITV inv = Initv_Table[invidx];
-  LABEL_IDX lab;
-  TCON tcon;
-  ST *st;
-  pSCNINFO scn = em_scn[scn_idx].scninfo;
-
-#ifdef KEY
-  static bool emit_typeinfo=false;
-#endif
-
- switch ( INITV_kind(inv) ) {
-    case INITVKIND_ZERO:
-      tcon = Host_To_Targ (INITV_mtype (inv), 0);
-#ifdef KEY
-      if (!emit_typeinfo)
-        scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat2 (inv),
-                               etable, format);
-      else
-#endif // KEY
-        scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat2 (inv));
-      break;
-
-    case INITVKIND_ONE:
-      tcon = Host_To_Targ (INITV_mtype (inv), 1);
-#ifdef KEY
-      scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat2 (inv),
-				etable, format);
-#else
-      scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat2 (inv));
-#endif // KEY
-      break;
-    case INITVKIND_VAL:
-#ifdef KEY
-      scn_ofst = Write_TCON (&INITV_tc_val(inv), scn_idx, scn_ofst,
-                              INITV_repeat2(inv), etable, format);
-#else
-      scn_ofst = Write_TCON (&INITV_tc_val(inv), scn_idx, scn_ofst, 
-			      INITV_repeat2(inv));
-#endif // KEY
-      break;
-
-    case INITVKIND_SYMOFF:
-      st = &St_Table[INITV_st(inv)];
-#if defined TARG_ST || defined TARG_X8664
-      if ((Gen_PIC_Call_Shared || Gen_PIC_Shared) && emit_typeinfo)
-      { // handle it differently
-	scn_ofst = Emit_PIC_version (st, scn_ofst);
-      	break;
-      }
-#endif
-      switch (ST_sclass(st)) {
-	case SCLASS_AUTO:
-	{ /* EH stack variable */
-	  tcon = Host_To_Targ(MTYPE_I4, Offset_from_FP(st));
-	  scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat1(inv));
-	  break;
-	}
-
-	case SCLASS_FORMAL:
-	{ /* EH this-pointer */
-          ST * base = ST_base(st);
-	  INT  ofst = ST_ofst(st);
-	  tcon = Host_To_Targ(MTYPE_I4, ofst);
-	  scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat1(inv));
-	  break;
-	}
-      
-	default:
-          scn_ofst = Write_Symbol ( st, INITV_ofst(inv),
-	  			      scn_idx, scn_ofst, INITV_repeat1(inv));
-	   break;
-      }
-      break;
-
-#ifdef TARG_ST
-      /* (cbr) support for half address relocation */
-    case INITVKIND_SYMOFF16:
-      st = &St_Table[INITV_st(inv)];
-      switch (ST_sclass(st)) {
-	case SCLASS_AUTO:
-	case SCLASS_FORMAL:
-          DevAssert(FALSE, ("wrong class symoff16"));
-	  break;
-          
-	default:
-          scn_ofst = Write_Symbol ( st, INITV_ofst(inv),
-                                    scn_idx, scn_ofst, INITV_repeat1(inv), true);
-	   break;
-      }
-      break;
-#endif
-
-    case INITVKIND_LABEL:
-	lab = INITV_lab(inv);
-#ifdef KEY
-	if (etable)
-	{
-	    scn_ofst = Handle_EH_Region_Length (lab, scn_idx, scn_ofst);
-	    break;
-	}
-#endif // KEY
-	scn_ofst = Write_Label (lab, 0, scn_idx, scn_ofst, INITV_repeat1(inv));
-	break;
-
-#ifdef TARG_ST
-/* (cbr) DDTSst24451. add support for label diffs initializers */
- case INITVKIND_LABDIFF:
-      scn_ofst = Write_Labdiff ( INITV_labd0(inv), INITV_labd1(inv),
-				scn_idx, scn_ofst, INITV_repeat1(inv), 4);
-      break;
-#endif
-
-    case INITVKIND_SYMDIFF:
-#ifdef KEY
-      scn_ofst = Write_Symdiff ( INITV_lab1(inv), INITV_st2(inv),
-			scn_idx, scn_ofst, INITV_repeat1(inv), 4, etable);
-#else
-      scn_ofst = Write_Symdiff ( INITV_lab1(inv), INITV_st2(inv),
-				scn_idx, scn_ofst, INITV_repeat1(inv), 4);
-#endif // KEY
-      break;
-    case INITVKIND_SYMDIFF16:
-#ifdef KEY
-      scn_ofst = Write_Symdiff ( INITV_lab1(inv), INITV_st2(inv),
-			scn_idx, scn_ofst, INITV_repeat1(inv), 2, etable);
-#else
-      scn_ofst = Write_Symdiff ( INITV_lab1(inv), INITV_st2(inv),
-				scn_idx, scn_ofst, INITV_repeat1(inv), 2);
-#endif // KEY
-      break;
-
-    case INITVKIND_BLOCK:
-#ifdef KEY
-      if (INITV_flags(inv) == INITVFLAGS_TYPEINFO)
-	emit_typeinfo = true;
-#endif
-      for (i = 0; i < INITV_repeat1(inv); i++) {
-	for (ninv = INITV_blk(inv); ninv; ninv = INITV_next(ninv)) {
-#ifdef KEY
-          scn_ofst = Write_INITV (ninv, scn_idx, scn_ofst, etable, format);
-#else
-          scn_ofst = Write_INITV (ninv, scn_idx, scn_ofst);
-#endif // KEY
-	}
-      }
-#ifdef KEY
-      if (emit_typeinfo)
-	emit_typeinfo = false;
-#endif
-      break;
-
-    case INITVKIND_PAD:
-      if ((Assembly || Lai_Code) && (INITV_pad(inv)*INITV_repeat1(inv) > 0)) {
-	fprintf(Output_File, "\t%s %d\n", 
-                           AS_SPACE, INITV_pad(inv) * INITV_repeat1(inv));
-	//ASM_DIR_ZERO(Output_File, INITV_pad(inv) * INITV_repeat1(inv));
-      }
-#if 0
-      if (Object_Code) {
-	Em_Add_Zeros_To_Scn (scn, INITV_pad(inv) * INITV_repeat1(inv), 1);
-      }
-#endif
-      scn_ofst += INITV_pad(inv) * INITV_repeat1(inv);
-      break;
-
-    default:
-      break;
-  }
-  return scn_ofst;
-}
 
 #ifdef KEY
 static Elf64_Xword
@@ -2146,182 +1304,8 @@ Generate_Exception_Table_Header (INT scn_idx,
                                  LABEL_IDX *);
 #endif // KEY
 
-/* ====================================================================
- *    Write_INITO (inop, scn_idx, scn_ofst)
- *
- *    Emit the initialized object to the object file 
- * ====================================================================
- */
-static Elf64_Word
-Write_INITO (
-  INITO* inop,		/* Constant to emit */
-  INT scn_idx,		/* Section to emit it into */
-  Elf64_Xword scn_ofst	/* Section offset to emit it at */
-)
-{
-  // pSCNINFO scn = em_scn[scn_idx].scninfo;
-  Elf64_Xword inito_ofst;
-  ST *sym;
-  ST *base;
-  INITO ino = *inop;
-
-  if ( Trace_Init ) {
-    #pragma mips_frequency_hint NEVER
-    Trace_Init_Loc (scn_idx, scn_ofst, 0);
-    fprintf ( TFile, "INITO: " );
-    Print_INITO (ino);
-  }
-
-  Base_Symbol_And_Offset(INITO_st(ino), &base, (INT64*)&inito_ofst);
-
-  if (inito_ofst > scn_ofst) {
-    if (Assembly || Lai_Code) {
-      fprintf(Output_File, "\t%s %lld\n", AS_SPACE, inito_ofst - scn_ofst);
-      //ASM_DIR_ZERO(Output_File, inito_ofst - scn_ofst);
-    }
-#if 0
-    if (Object_Code) {
-      Em_Add_Zeros_To_Scn ( scn, inito_ofst - scn_ofst, 1 );
-    }
-#endif
-    scn_ofst = inito_ofst;
-  } else {
-    FmtAssert ( inito_ofst >= scn_ofst, 
-      ("Write_INITO: DATA overlap 1, inito ofst @ %lld, scn ofst @ %lld",
-	  inito_ofst, scn_ofst));
-  }
-
-  sym = INITO_st(ino);
-  if (Assembly || Lai_Code) {
-    char *name = ST_name(sym);
-    if (name != NULL && *name != 0) {
-      Print_Label (Output_File, sym, TY_size(ST_type(sym)));
-    }
-  }
-#if 0
-  if (Object_Code && ! ST_is_export_local(sym)) {
-    EMT_Put_Elf_Symbol (sym);
-  }
-#endif
-
-  /* If there's no initial value, this should be a constant symbol,
-   * and the represented constant is the initial value:
-   */
-  if ( INITO_val(ino) == (INITO_IDX) NULL ) {
-    if ( ST_class(sym) == CLASS_CONST ) {
-      scn_ofst = Write_TCON (&ST_tcon_val(sym), scn_idx, scn_ofst, 1);
-    }
-  } else {
-    INITV_IDX inv;
-#ifdef KEY
-        char *name = ST_name (sym);
-        bool range_table = (name != NULL) &&
-                (!strncmp (".range_table.", name,strlen(".range_table."))) &&
-                (ST_sclass (sym) == SCLASS_EH_REGION);
-        LABEL_IDX labels[2];
-        if (range_table)
-        {
-            exception_table_id++;
-            scn_ofst = Generate_Exception_Table_Header (scn_idx, scn_ofst, labels);
-        }
-        bool action_table_started = false;
-	bool type_label_emitted = false;
-#endif // KEY
-    FOREACH_INITV (INITO_val(ino), inv) {
-#ifdef KEY
-            if (range_table && !action_table_started &&
-                  (INITV_flags (Initv_Table[inv]) == INITVFLAGS_ACTION_REC))
-            {
-                action_table_started = true;
-                fprintf ( Asm_File, "%s:\n", LABEL_name(labels[0]));
-#ifdef TARG_ST
-		// [CL]
-		Set_LABEL_emitted(labels[0]);
-#endif
-            }
-	    if (range_table && !type_label_emitted && 
-	    	INITV_flags(Initv_Table[inv]) == INITVFLAGS_EH_SPEC)
-	    {
-	    	type_label_emitted = true;
-            	fprintf ( Asm_File, "%s:\n", LABEL_name(labels[1]));
-#ifdef TARG_ST
-		// [CL]
-		Set_LABEL_emitted(labels[1]);
-#endif
-	    }
-            scn_ofst = Write_INITV (inv, scn_idx, scn_ofst, range_table,
-	    		range_table ? INITV_flags (Initv_Table[inv]) : 0);
-	    if (range_table && !type_label_emitted)
-	    {
-// Emit the type label IF we are emitting typeids AND this is the last
-// typeid, OR if we are beginning the eh-spec table (i.e. had an empty
-// typeid table) as above
-	    	if ((INITV_flags(Initv_Table[inv]) == INITVFLAGS_TYPEINFO) &&
-	      		(!INITV_next(inv) || 
-			!INITV_flags(Initv_Table[INITV_next(inv)])))
-	    	{
-	    	    type_label_emitted = true;
-            	    fprintf ( Asm_File, "%s:\n", LABEL_name(labels[1]));
-#ifdef TARG_ST
-		    // [CL]
-		    Set_LABEL_emitted(labels[1]);
-#endif
-	    	}
-	    }
-#else
-      scn_ofst = Write_INITV (inv, scn_idx, scn_ofst);
-#endif // KEY
-    }
-#ifdef KEY
-    if (range_table && !type_label_emitted) {
-            fprintf ( Asm_File, "%s:\n", LABEL_name(labels[1]));
-#ifdef TARG_ST
-	    // [CL]
-	    Set_LABEL_emitted(labels[1]);
-#endif
-    }
-#endif // KEY
-#ifdef TARG_ST
-    if (range_table && !action_table_started) {
-      fprintf ( Asm_File, "%s:\n", LABEL_name(labels[0]));
-      Set_LABEL_emitted(labels[0]);
-    }
-#endif
-  }
-
-  if (Assembly || Lai_Code) {
-#ifdef TARG_ST
-    if (List_Notes)
-#endif
-    fprintf (Output_File, "\t%s end of initialization for %s\n", 
-                                              ASM_CMNT, ST_name(sym));
-  }
-
-  return scn_ofst;
-}
 
 #ifdef KEY
-static Elf64_Word
-Write_Diff (
-  LABEL_IDX lab1,       /* left symbol */
-  LABEL_IDX lab2,       /* right symbol */
-  INT scn_idx,          /* Section to emit it in */
-  Elf64_Word scn_ofst)  /* Section offset to emit it at */
-{
-      fprintf (Asm_File, "\t.uleb128\t");
-      fprintf(Asm_File, "%s", LABEL_name(lab1));
-      fprintf (Asm_File, "-");
-      fprintf(Asm_File, "%s", LABEL_name(lab2));
-      fprintf (Asm_File, "\n");
-
-#ifdef TARG_ST
-      // [CL]
-      Set_LABEL_emitted(lab1);
-      Set_LABEL_emitted(lab2);
-#endif
-      return scn_ofst+4;
-}
-
 static int
 num_digits (int in)
 {
@@ -2642,307 +1626,6 @@ LAI_print_section (
 }
 #endif
 
-/* ====================================================================
- *    Process_Initos_And_Literals (stab)
- *
- *    This routine can be called multiple times for the global symtab;
- *    we do this so that objects are emitted in order.
- *    For each section, some objects are in local symtab, and some in global.
- *    We keep track of the last global symbol that has been processed
- *    so that we only process new symbols.
- *
- * ====================================================================
- */
-static void
-Process_Initos_And_Literals (
-  SYMTAB_IDX stab
-)
-{
-  static std::vector<bool> st_processed;
-  if (st_processed.size() != ST_Table_Size(GLOBAL_SYMTAB)) {
-    st_processed.resize(ST_Table_Size(GLOBAL_SYMTAB), false);
-  }
-
-  std::vector<ST*> st_list;
-  std::vector<ST*>::iterator st_iter;
-
-  typedef 
-  hash_map < ST_IDX, INITO*,  __gnu_cxx::hash<ST_IDX>, std::equal_to<ST_IDX> > ST_INITO_MAP;
-  ST_INITO_MAP st_inito_map;
-
-  UINT i;
-  static UINT last_inito = 1;
-// #ifdef TARG_ST
-//   /* [vcdv] store INITO table size [ fix for bug #20142.] */
-//   int Inito_table_size = INITO_Table_Size(stab);
-// #endif
-
-  // First walk the INITOs from the global table
-  for (i = last_inito; i < INITO_Table_Size(GLOBAL_SYMTAB); ++i) {
-    INITO* ino = &Inito_Table(GLOBAL_SYMTAB,i);
-    ST* st = INITO_st(ino);
-    /* don't emit initialization if st not used or extern */
-    if (ST_is_not_used(st) ||
-        ST_sclass(st) == SCLASS_EXTERN ||
-        ST_sclass(st) == SCLASS_DISTR_ARRAY) {
-      continue;
-    }
-    st_list.push_back(st);
-    st_inito_map[ST_st_idx(st)] = ino;
-  }
-
-  last_inito = INITO_Table_Size(GLOBAL_SYMTAB);
-
-  // Then walk the INITOs from the local table
-  if (stab != GLOBAL_SYMTAB) {
-    for (i = 1; i < INITO_Table_Size(stab); ++i) {
-      INITO* ino = &Inito_Table(stab,i);
-      ST* st = INITO_st(ino);
-      /* don't emit initialization if st not used or extern */
-      if (ST_is_not_used(st) ||
-          ST_sclass(st) == SCLASS_EXTERN) {
-        continue;
-      }
-      st_list.push_back(st);
-      st_inito_map[ST_st_idx(st)] = ino;
-    }
-  }
-
-  // Then walk the CONSTANTs from the global table
-  for (i = 1; i < ST_Table_Size(GLOBAL_SYMTAB); ++i) {
-    ST* st = &St_Table(GLOBAL_SYMTAB,i);
-    if (ST_class(st) == CLASS_CONST && !st_processed[ST_index(st)]) {
-#ifdef TARG_ST
-      ST *base = Base_Symbol (st);
-#else
-      INT64 ofst;
-      ST* base;
-      Base_Symbol_And_Offset(st, &base, &ofst);
-#endif
-      if (ST_class(base) != CLASS_BLOCK || !STB_section(base)) {
-        continue; // not allocated
-      }
-      if (Emit_Global_Data && SEC_is_merge(STB_section_idx(base))) {
-        continue; // allocate in each .o
-      }
-      st_list.push_back(st);
-    }
-  }
-
-  // Print_ST_List(st_list, "UNSORTED");
-  std::stable_sort (st_list.begin(), st_list.end(), size_lt);
-  // Print_ST_List(st_list, "SORTED BY SIZE");
-  std::stable_sort (st_list.begin(), st_list.end(), offset_lt);
-  // Print_ST_List(st_list, "SORTED BY OFFSET");
-  std::stable_sort (st_list.begin(), st_list.end(), section_lt);
-  // Print_ST_List(st_list, "SORTED BY SECTION");
-
-// #ifdef TARG_ST
-//   /* [vcdv] store number of iteration in st_list [ fix for bug #20142.]*/
-//   int st_iter_rank;
-//   for (st_iter = st_list.begin(), st_iter_rank=0; st_iter != st_list.end();
-//        st_iter_rank++, ++st_iter) {
-// #else
-    for (st_iter = st_list.begin(); st_iter != st_list.end(); ++st_iter) {
-// #endif
-
-
-    INT64 ofst;
-    ST* base;
-    ST* st = *st_iter;
-
-#ifdef KEY // for PUs with nested functions, the INITO is used only to record
-	   // the list of nested functions only, since the STs of the nested
-	   // functions can only be entered in the global symbol table
-     if (ST_class(st) == CLASS_PREG && 
-         strncmp(ST_name(st), ".nested_functions", 17) == 0)
-       continue;
-#endif
-
-    ST_INITO_MAP::iterator st_inito_entry = st_inito_map.find(ST_st_idx(st));
-
-    if (st_inito_entry != st_inito_map.end()) {
-      INITO* ino = (*st_inito_entry).second;
-      Base_Symbol_And_Offset(st, &base, &ofst);
-      if (ST_sclass(base) == SCLASS_EXTERN) {
-        // ipa can cause it to be based on global extern,
-        // in which case it is already emitted. 
-        continue;
-      }
-      FmtAssert(ST_class(base) == CLASS_BLOCK && STB_section(base),
-                ("inito (%s) not allocated?", ST_name(st)));
-      Init_Section(base); //make sure base is inited 
-      // may need padding between objects in same section,
-      // so always change origin
-      Change_Section_Origin (base, ofst);
-#ifdef TARG_ST
-      Check_Section_Alignment (base, TY_align(ST_type(st)));
-#endif
-#if 0
-      // Arthur: It's a hack but I can not align things in the above
-      //         (see comment in Change_Section_Origin(). I am 
-      //         aligning it at 4 bytes here. I should really get
-      //         be getting the alignment requirement for 'st'
-      fprintf (Output_File, "\t%s 4\n", AS_ALIGN);
-#endif
-      ofst = Write_INITO (ino, STB_scninfo_idx(base), ofst);
-#ifdef TARG_ST
-      Set_Section_Offset(base, ofst);
-#endif
-    }
-
-    else {
-      st_processed[ST_index(st)] = TRUE;
-      Base_Symbol_And_Offset(st, &base, &ofst);
-      Init_Section(base); // make sure base is inited
-      // we cannot assume that constants are sequentially ordered
-      // by offset, because they are allocated on the fly as we
-      // expand the whirl nodes.  So always reset the origin.
-      Change_Section_Origin (base, ofst);
-#ifdef TARG_ST
-      Check_Section_Alignment (base, TY_align(ST_type(st)));
-#endif
-#if 0
-      // Arthur: It's a hack but I can not align things in the above
-      //         (see comment in Change_Section_Origin(). I am 
-      //         aligning it at 4 bytes here. I should really get
-      //         be getting the alignment requirement for 'st'
-      // Is this necessary here ?
-      fprintf (Output_File, "\t%s 4\n", AS_ALIGN);
-#endif
-
-      // emit TCON associated symbolic name as label
-      //      char *cname = Get_TCON_name (ST_tcon(st));
-      //      fprintf(Output_File, "%s:\n", cname);
-#ifdef TARG_ST
-      // [CL] handle the case of generation of symtab.s
-      // in IPA mode. Although local, such symbols must
-      // be 'promoted' to global so that they can be
-      // accessed by the module they belong to
-      if (Emit_Global_Data) {
-	fprintf(Output_File, "\t%s\t", AS_GLOBAL);
-	EMT_Write_Qualified_Tcon_Name(Output_File, st);
-	fprintf(Output_File, "\n");
-	// [CL] output as hidden/internal so that we are close to the
-	// export_local meaning
-#ifdef AS_INTERNAL
-	if (ST_export(st) == EXPORT_LOCAL_INTERNAL) {
-	  fprintf (Output_File, "\t%s\t", AS_INTERNAL);
-	  EMT_Write_Qualified_Tcon_Name(Output_File, st);
-	  fprintf(Output_File, "\n");
-	} else
-#endif
-#ifdef AS_HIDDEN
-	  {
-	    fprintf (Output_File, "\t%s\t", AS_HIDDEN);
-	    EMT_Write_Qualified_Tcon_Name(Output_File, st);
-	    fprintf(Output_File, "\n");
-	  }
-#endif
-      }
-      fprintf (Output_File, "\t%s\t", AS_TYPE);
-      EMT_Write_Qualified_Tcon_Name (Output_File, st);
-#  ifdef AS_MOVEABLE
-      BOOL moveable;
-      int size = TY_size(ST_type(st));
-      
-      if (Emit_Global_Data) {
-	/* TB: Tell this symbol is moveable when not in Emit_Global_Data (ipa) */
-	moveable = FALSE;
-      }
-      else if (ST_is_initialized (st)) {
-	/* [SC]: Not moveable if initializer is larger than symbol size */
-	INITV_IDX inito_idx = ST_has_inito (st);
-	if (inito_idx != 0 && Get_INITO_Size (inito_idx) > size)
-	  moveable = FALSE;
-	else
-	  moveable = TRUE;
-      }
-      else {
-	moveable = TRUE;
-      }
-      
-      fprintf (Output_File, ", %s", AS_TYPE_OBJECT);
-      if (moveable) {
-	fprintf (Output_File, ", %s", AS_MOVEABLE);
-      }
-#  ifdef AS_USED
-      /* TB: add gnu used  attibute when needed */
-      if (ST_is_used(st)) {
-	fprintf (Output_File, ", %s", AS_USED);
-      }
-#endif
-      fprintf (Output_File, "\n");
-#  else //AS_MOVEABLE
-      fprintf (Output_File, ", %s\n", AS_TYPE_OBJECT);
-#  endif 
-#ifdef AS_SIZE
-      {
-	TCON tcon = ST_tcon_val(st);
-	BOOL add_null = TCON_add_null(tcon);
-	int size = 0;
-	if ( TCON_ty(tcon) == MTYPE_STRING )
-	  size = (Targ_String_Length (tcon) + (add_null ? 1 : 0));
-	else
-	  size = TY_size(Be_Type_Tbl(TCON_ty(tcon)));
-	if (size != 0) {
-	  /* if size is given, then emit value for asm */
-	  fprintf (Output_File, "\t%s\t", AS_SIZE);
-	  EMT_Write_Qualified_Tcon_Name(Output_File, st);
-	  fprintf (Output_File, ", %d\n", size);
-	}
-      }
-#endif
-      EMT_Write_Qualified_Tcon_Name(Output_File, st);
-      fprintf(Output_File, ":\n");
-#else //Not TARG_ST
-      fprintf(Output_File, "%s_UNNAMED_CONST_%d:\n", Local_Label_Prefix, ST_tcon(st));
-#endif
-      ofst = Write_TCON (&ST_tcon_val(st), STB_scninfo_idx(base), ofst, 1);
-#ifdef TARG_ST
-      Set_Section_Offset(base, ofst);
-#endif
-    }
-// #ifdef TARG_ST
-//     /* [vcdv] fix for bug #20142.
-//        a local static array was not initialized in tda/sda/da mode.
-//        This loop adds any new items from INITOS into the st_list so as
-//        to dump it as well.
-
-//        Another way to fix this issue would be to modify the
-//        Allocate_Object() function : It could run Allocate_Object() on
-//        its dependencies (initial values).       
-//      */
-//     if (stab != GLOBAL_SYMTAB) {
-//       int newSize = INITO_Table_Size(stab);
-//       if (newSize != Inito_table_size)
-//         {
-//           int i;
-//           for (i=Inito_table_size; i<newSize; i++)
-//             {
-//               INITO* ino = &Inito_Table(stab,i);
-//               ST* st = INITO_st(ino);
-//               /* don't emit initialization if st not used or extern */
-//               if (ST_is_not_used(st) ||
-//                   ST_sclass(st) == SCLASS_EXTERN)
-//                 {
-//                   continue;
-//                 }
-//               st_list.push_back(st);
-//               st_inito_map[ST_st_idx(st)] = ino;
-//               /* reinit st_iter to guarantee that new items are
-//                * effectively parsed in the loop
-//                */
-//               st_iter= st_list.begin()+st_iter_rank;
-//             }
-//         }
-//           Inito_table_size = newSize;
-//     }
-// #endif
-  }
-
-  return;
-}
 
 /* ====================================================================
  *    Process_Distr_Array ()
@@ -3031,9 +1714,7 @@ Process_Bss_Data (
     last_global_index = ST_Table_Size(GLOBAL_SYMTAB);
   }
 
-  // It's a bit counter-intuitive, but to get the list sorted
-  // by section and then by offset within section,
-  // should stable_sort in reverse order (offset then section).
+  // sort in lexicographic order section, offset, size
   std::stable_sort (bss_list.begin(), bss_list.end(), size_lt);
   std::stable_sort (bss_list.begin(), bss_list.end(), offset_lt);
   std::stable_sort (bss_list.begin(), bss_list.end(), section_lt);
@@ -3082,7 +1763,7 @@ Process_Bss_Data (
 #endif
 
     Change_Section_Origin (base, ofst);
-    if (Assembly || Lai_Code) {
+    if (Assembly || Lai_Code || MiniR_Code) {
       size = TY_size(ST_type(sym));
 #ifdef TARG_ST
       // Save alignment before continuing
@@ -3091,7 +1772,7 @@ Process_Bss_Data (
       }
       // Do not print the label yet
 #else
-      Print_Label (Output_File, sym, size);
+      Print_Label (MiniR_Code ? Output_File : MiniR_File, sym, size);
 #endif
 
       // before emitting space,
@@ -3149,12 +1830,14 @@ Process_Bss_Data (
       // are sorted so that largest size is last.
       if (size > 0) {
 #ifndef TARG_ST
-	fprintf(Output_File, "\t%s %d\n", AS_ALIGN, TY_align(ST_type(sym)));
+	fprintf(MiniR_Code ? Output_File : MiniR_File, "\t%s %d\n", AS_ALIGN, TY_align(ST_type(sym)));
 #endif
 	if (Assembly)
 	  ASM_DIR_SKIP(Asm_File, (INT32)size);
 	if (Lai_Code)
 	  fprintf(Lai_File, "\t%s %lld\n", AS_SPACE, size);
+	if (MiniR_Code)
+	  fprintf(MiniR_File, "\t%s %lld\n", AS_SPACE, size);
 	  /*      ASM_DIR_SKIP(Lai_File, size); */
       }
 #ifdef TARG_ST
@@ -3437,7 +2120,7 @@ Create_Cold_Text_Section (void)
 #else 
     if (
 #endif
-	EMIT_use_cold_section && BB_Is_Cold(bb)) {
+	EMIT_use_cold_section && !MiniR_Code && BB_Is_Cold(bb)) {
       if (cold_base == NULL) {
 	ST *st = Copy_ST(text_base);
 	Set_ST_blk(st, Copy_BLK(ST_blk(text_base)));
@@ -3486,7 +2169,7 @@ Setup_Text_Section_For_BB (
 )
 {
   BOOL cold_bb = BB_cold(bb);
-  PU_base = cold_bb ? cold_base : text_base;
+  PU_base = cold_bb && !MiniR_Code ? cold_base : text_base;
   if (cur_section != PU_base) {
     if (Assembly) {
       fprintf (Asm_File, "\n\t%s %s\n", AS_SECTION, ST_name(PU_base));
@@ -6661,7 +5344,8 @@ R_Resolve_Branches (
  *    data layout at that point.
  * ====================================================================
  */
-static void
+// removed static for MiniR FAB 
+void
 emit_global_symbols ()
 {
   INT i;
@@ -7013,6 +5697,7 @@ EMT_Begin_File (
   return;
 }
 
+
 /* ====================================================================
  *    EMT_Emit_PU (pu, pu_dst, rwn)
  * ====================================================================
@@ -7084,6 +5769,9 @@ EMT_Emit_PU (
   // initialize any new global sections:
   // We don't do this in EMT_Begin_File because may not have done
   // data layout at that point.
+#if 0 // for debug FAB
+  if (Assembly) fprintf( Asm_File, "## %s:%d before global syms\n", __FILE__, __LINE__ );
+#endif
   emit_global_symbols ();
 
   // emit global bss first so .org is correct
@@ -7396,6 +6084,9 @@ EMT_Emit_PU (
 
   Finalize_Unwind_Info();
 
+#if 1 // for debug
+  fprintf( Asm_File, "## %s:%d, %s end\n", __FILE__, __LINE__, __FUNCTION__ );
+#endif
   return;
 }
 
@@ -7784,7 +6475,7 @@ EMT_End_File( void )
   return;
 }
 
-#else
+#else // END_TARG_ST_IFDEF
 #ifdef TARG_X8664
 extern void EETARG_Emit_IP_Calc_Func(void);
 #endif
@@ -8261,12 +6952,122 @@ ST_is_gp_relative(ST *st)
 
 #define Is_Text_Section(st) (STB_exec(st) && strncmp(ST_name(st), ELF_TEXT,5)==0)
 
+const char* SHF_String (INT f)
+{
+  switch (f) {
+  case SHF_WRITE:
+    return "writable";
+  case SHF_ALLOC:
+    return "allocatable";
+  case SHF_EXECINSTR:
+    return "executable";
+  case SHF_MERGE:
+    return "to-be-merged";
+  case SHF_STRINGS:
+    return "string";
+  case SHF_INFO_LINK:
+    return "info-link";
+  case SHF_LINK_ORDER:
+    return "link-order";
+  case SHF_OS_NONCONFORMING:
+    return "os-nonconforming";
+  case SHF_GROUP:
+    return "section-group-member";
+  case SHF_TLS:
+    return "thread-local-storage";
+  case SHF_MASKOS:
+    return "mask-os";
+  case SHF_MASKPROC:
+    return "mask-proc";
+  default:
+    return "unknown";
+  }
+}
+
+const char *SHFmask_String ( Elf64_Word m )
+{
+  Elf64_Word f;
+  std::string sep="";
+  std::ostringstream os;
+
+  for (f=0x1; f; f<<=1) {
+    if (f & m) {
+      os << sep << SHF_String(f);
+      sep=", ";
+    }
+  }
+
+  return (os.str()).c_str();
+}
+
+const char* SHT_String (INT t)
+{
+  switch (t) {
+  case SHT_NULL:
+    return "undefined";
+  case SHT_PROGBITS:
+    return "program";
+  case SHT_SYMTAB:
+    return "symbol-table";
+  case SHT_STRTAB:
+    return "string-table";
+  case SHT_RELA:
+    return "rela-relocation";
+  case SHT_HASH:
+    return "hash-table";
+  case SHT_DYNAMIC:
+    return "dynamic-linking";
+  case SHT_NOTE:
+    return "file-marking";
+  case SHT_NOBITS:
+    return "unallocated";
+  case SHT_REL:
+    return "rel-relocation";
+  case SHT_SHLIB:
+    return "reserved";
+  case SHT_DYNSYM:
+    return "dynamic-symbol";
+  case SHT_INIT_ARRAY:
+    return "init-function-pointer-array";
+  case SHT_FINI_ARRAY:
+    return "exit-function-pointer-array";
+  case SHT_PREINIT_ARRAY:
+    return "preinit-function-pointer-array";
+  case SHT_GROUP:
+    return "group";
+  case SHT_SYMTAB_SHNDX:
+    return "symtab-extended-index";
+  case SHT_LOOS:
+    return "os-specific-lowbound";
+  case SHT_HIOS:
+    return "os-specific-highbound";
+  case SHT_LOPROC:
+    return "proc-specific-lowbound";
+  case SHT_HIPROC:
+    return "proc-specific-highbound";
+  case SHT_LOUSER:
+    return "user-specific-lowbound";
+  case SHT_HIUSER:
+    return "user-specific-highbound";
+  default:
+    return "unknown";
+  }
+}
+
+/* ====================================================================
+ *    Init_Section (st)
+ *
+ *    Initialize a section.
+ * ====================================================================
+ */
+
 static void
 Init_Section (ST *st)
 {
 	Elf64_Word scn_type;
 	Elf64_Word scn_flags;
 	Elf64_Xword scn_entsize;
+	char sname[32];
 
 	if (ST_elf_index(st) != 0) {
 		/* already created */
@@ -8285,6 +7086,21 @@ Init_Section (ST *st)
 	Set_STB_scninfo_idx(st, last_scn);
 
 	/* hack for .text section */
+#ifdef TARG_ST
+  // (cbr) exectutable sections should be text aligned
+  // [CG] Minimal alignment of text segment is DEFAULT_TEXT_ALIGNMENT.
+  if (STB_exec (st)) {
+    int text_align;
+    if (Align_Instructions) 
+      text_align = Align_Instructions;
+    else if (EMIT_space)
+      text_align = DEFAULT_TEXT_ALIGNMENT;
+    else 
+      text_align = CGTARG_Text_Alignment();
+    if (text_align < DEFAULT_TEXT_ALIGNMENT) text_align = DEFAULT_TEXT_ALIGNMENT;
+    Set_STB_align(st, text_align);
+  }
+#else
 	if (Is_Text_Section(st)) {
 		if (Align_Instructions) 
 			Set_STB_align(st, Align_Instructions);
@@ -8293,9 +7109,34 @@ Init_Section (ST *st)
 		else
 			Set_STB_align(st, CGTARG_Text_Alignment());
 	}
+#endif
+#ifdef TARG_ST
+  // [CG]: For data sections we may have an alignment
+  // Currently set it to DEFAULT_DATA_ALIGNMENT
+  else {
+    if (STB_align(st) == 0) {
+      /* (cbr) if the section is not used, no alignement has been set */
+      if (STB_size(st))
+        DevWarn("default alignment not set for section %s\n", ST_name(st));
+      Set_STB_align(st, DEFAULT_DATA_ALIGNMENT);
+    }
+  }
+#endif
 
 	em_scn[last_scn].sym = st;	/* save symbol for later reference */
 
+#ifdef TARG_ST100
+  /* (cbr) section relative offset using labels only on st100 */
+
+  // Make a label:
+  sprintf(sname, "%s_SECTION_%d", Local_Label_Prefix, last_scn);
+  em_scn[last_scn].label = strdup(sname);
+
+  if (Trace_Init) {
+    fprintf(TFile, "<init>: Section %s: labeling %s\n", 
+	    ST_name(em_scn[last_scn].sym), em_scn[last_scn].label);
+  }
+#endif
 	/* assume st is CLASS_BLOCK */
 	scn_type = Get_Section_Elf_Type(STB_section_idx(st));
 	scn_flags = Get_Section_Elf_Flags(STB_section_idx(st));
@@ -8337,6 +7178,18 @@ Init_Section (ST *st)
 	  fprintf(Asm_File, "\t%s\t%d\n", AS_ALIGN, power);
 #endif
 	}
+	if (MiniR_Code) {
+	  fprintf(MiniR_File, "  - label: %s\n", ST_name(st));
+	  if (scn_flags) 
+	    fprintf(MiniR_File, "    flags: [ %s ]\n", SHFmask_String(scn_flags));
+	  if (scn_type)
+	    fprintf(MiniR_File, "    type: %s\n", SHT_String(scn_type));
+	  if (!strcmp (ST_name(st), ".eh_frame")) fprintf (MiniR_File, "\n.EHCIE:");
+	  fprintf (MiniR_File, "    align: %d\n", STB_align(st));  
+	}
+	
+  return;
+
 }
 
 static unsigned char
@@ -8555,7 +7408,12 @@ EMT_Write_Qualified_Name (FILE *f, ST *st)
   fputs(EMT_Get_Qualified_Name(st).c_str(), f);
 }
 
-/* print the internal, hidden or protected attributes if present */
+/* ====================================================================
+ *    Print_Dynsym (pfile, st)
+ *
+ *    print the internal, hidden or protected attributes if present 
+ * ====================================================================
+ */
 static void Print_Dynsym (FILE *pfile, ST *st)
 {
   const char *x = AS_DYNSYM;
@@ -8583,29 +7441,56 @@ static void Print_Dynsym (FILE *pfile, ST *st)
   }
 }
 
+/* ====================================================================
+ *    Print_Label (pfile, st, size)
+ * ====================================================================
+ */
 static void Print_Label (FILE *pfile, ST *st, INT64 size)
 {
     ST *base_st;
     INT64 base_ofst;
 
+    FmtAssert(!MiniR_Code || pfile==MiniR_File, ("Print_Label called with NULL file")); 
+
     if (ST_is_weak_symbol(st)) {
 	fprintf ( pfile, "\t%s\t", AS_WEAK);
 	EMT_Write_Qualified_Name(pfile, st);
 	fputc ('\n', pfile);
-#ifdef KEY // bug 12145: write .hidden
-	if (ST_export(st) == EXPORT_HIDDEN) {
-	  fprintf ( pfile, "\t.hidden\t");
-	  EMT_Write_Qualified_Name(pfile, st);
-	  fputc ('\n', pfile);
-	}
-#endif
+	EMT_Visibility (pfile, ST_export(st), st);
     }
     else if (!ST_is_export_local(st)) {
 	fprintf ( pfile, "\t%s\t", AS_GLOBAL);
 	EMT_Write_Qualified_Name(pfile, st);
 	fputc ('\n', pfile);
+	EMT_Visibility (pfile, ST_export(st), st);
     }
-    EMT_Visibility (pfile, ST_export(st), st);
+#ifdef TARG_ST
+    // [CL] handle the case of generation of symtab.s
+    // in IPA mode. Although local, such symbols must
+    // be 'promoted' to global so that they can be
+    // accessed by the module they belong to
+    else if (ST_is_export_local(st) && Emit_Global_Data) {
+      fprintf (pfile, "\t%s\t", AS_GLOBAL);
+      EMT_Write_Qualified_Name(pfile, st);
+      fprintf(pfile, "\n");
+      // [CL] output as hidden/internal so that we are close to the
+      // export_local meaning
+#ifdef AS_INTERNAL
+      if (ST_export(st) == EXPORT_LOCAL_INTERNAL) {
+	fprintf (pfile, "\t%s\t", AS_INTERNAL);
+	EMT_Write_Qualified_Name(pfile, st);
+	fprintf(pfile, "\n");
+      } else
+#endif
+#ifdef AS_HIDDEN
+	{
+	  fprintf (pfile, "\t%s\t", AS_HIDDEN);
+	  EMT_Write_Qualified_Name(pfile, st);
+	  fprintf(pfile, "\n");
+	}
+#endif
+    }
+#endif
 #if 1 /* defined(BUILD_OS_DARWIN) */
 	// Bug 1275 and 4351
 	// Always emit the function type
@@ -8626,7 +7511,43 @@ static void Print_Label (FILE *pfile, ST *st, INT64 size)
 	    ) {
     	fprintf (pfile, "\t%s\t", AS_TYPE);
     	EMT_Write_Qualified_Name (pfile, st);
-    	fprintf (pfile, ", %s\n", AS_TYPE_OBJECT);
+#ifdef TARG_ST
+#  ifdef AS_MOVEABLE
+	BOOL moveable;
+
+	if (Emit_Global_Data) {
+	  /* TB: Tell this symbol is moveable when not in Emit_Global_Data (ipa) */
+	  moveable = FALSE;
+	}
+	else if (ST_is_initialized (st)) {
+	  /* [SC]: Not moveable if initializer is larger than symbol size */
+	  INITV_IDX inito_idx = ST_has_inito (st);
+	  if (inito_idx != 0 && Get_INITO_Size (inito_idx) > size)
+	    moveable = FALSE;
+	  else
+	    moveable = TRUE;
+	}
+	else {
+	  moveable = TRUE;
+	}
+	
+	fprintf (pfile, ", %s", AS_TYPE_OBJECT);
+	if (moveable) {
+	  fprintf (pfile, ", %s", AS_MOVEABLE);
+	}
+#  ifdef AS_USED
+	/* TB: add gnu used  attibute when needed */
+	if (ST_is_used(st)) {
+	  fprintf (pfile, ", %s", AS_USED);
+	}
+#endif
+	fprintf (pfile, "\n");
+#  else //AS_MOVEABLE
+	fprintf (pfile, ", %s\n", AS_TYPE_OBJECT);
+#  endif
+#else // TARG_ST
+	fprintf (pfile, ", %s\n", AS_TYPE_OBJECT);
+#endif    
     }
 #if ! defined(BUILD_OS_DARWIN)
     if (size != 0 && !CG_inhibit_size_directive) {
@@ -8636,9 +7557,25 @@ static void Print_Label (FILE *pfile, ST *st, INT64 size)
 	fprintf ( pfile, ", %" SCNd64 "\n", size);
     }
 #endif /* defined(BUILD_OS_DARWIN) */
+#ifdef TARG_ST
+    if (Base_Offset_Is_Known (st)) {
+      Base_Symbol_And_Offset (st, &base_st, &base_ofst);
+    } else {
+      base_st = st; base_ofst = 0;
+    }
+#else
     Base_Symbol_And_Offset (st, &base_st, &base_ofst);
+#endif
     EMT_Write_Qualified_Name (pfile, st);
-    fprintf ( pfile, ":\t%s 0x%" SCNx64 "\n", ASM_CMNT, base_ofst);
+#ifdef TARG_ST
+    if (List_Notes) {
+      fprintf (pfile, ":\t%s 0x%llx\n", ASM_CMNT_LINE, base_ofst);
+    } else {
+      fprintf (pfile, ":\n");
+    }
+#else
+    fprintf (pfile, ":\t%s 0x%llx\n", ASM_CMNT_LINE, base_ofst);
+#endif
     Print_Dynsym (pfile, st);
 }
 
@@ -11321,7 +10258,8 @@ Generate_Asm_String (OP* asm_op, BB *bb)
 
 /* Assemble a simulated OP.
  */
-static void
+// removed static for minir
+void
 Assemble_Simulated_OP(OP *op, BB *bb)
 {
   /* ASM is an odd case so we handle it specially. It doesn't expand
@@ -13118,7 +12056,7 @@ static Elf64_Xword Handle_EH_Region_Length (LABEL_IDX l,
  *
  * Write_TCON
  *
- * Emit a TCON value to the assembly/object file.
+ * Emit a TCON (constant) value to the assembly/object file.
  *
  * ====================================================================
  */
@@ -13143,16 +12081,16 @@ Write_TCON (
     Trace_Init_Loc ( scn_idx, scn_ofst, repeat);
     fprintf (TFile, "TCON: >>%s<<\n", Targ_Print (NULL, *tcon));
   }
-  if (Assembly) {
+  if (Assembly || MiniR_Code) {
     INT32 scn_ofst32 = (INT32)scn_ofst;
     FmtAssert(scn_ofst32 == scn_ofst, ("section offset exceeds 32 bits: 0x%" SCNx64 "",
 				       (INT64)scn_ofst));
 #ifdef KEY
     if (etable)
-        Targ_Emit_EH_Const ( Asm_File, *tcon, add_null, repeat, scn_ofst32, format );
+      Targ_Emit_EH_Const ( MiniR_Code ? MiniR_File : Asm_File, *tcon, add_null, repeat, scn_ofst32, format );
     else
 #endif // KEY
-    Targ_Emit_Const ( Asm_File, *tcon, add_null, repeat, scn_ofst32 );
+    Targ_Emit_Const ( MiniR_Code ? MiniR_File : Asm_File, *tcon, add_null, repeat, scn_ofst32 );
   } 
   if (Object_Code) {
     Em_Targ_Emit_Const ( scn, *tcon, add_null, repeat );
@@ -13165,7 +12103,7 @@ Write_TCON (
 
   return scn_ofst;
 }
-
+
 /* ====================================================================
  *
  * Write_Symbol
@@ -13181,13 +12119,23 @@ Write_Symbol (
   Elf64_Sxword sym_ofst,/*   ... plus this offset */
   INT scn_idx,		/* Section to emit it in */
   Elf64_Word scn_ofst,	/* Section offset to emit it at */
-  INT32	repeat)		/* Repeat count */
+  INT32	repeat		/* Repeat count */
+#ifdef TARG_ST
+  /* (cbr) support for half address relocation */
+  ,  BOOL halfword = 0  /* Output size */
+#endif
+)
 {
   INT32 i;
   ST *basesym;
   INT64 base_ofst = 0;
   pSCNINFO scn = em_scn[scn_idx].scninfo;
+#ifdef TARG_ST
+  /* (cbr) support for half address relocation */
+  INT address_size = halfword ? 2 : ((Use_32_Bit_Pointers) ? 4 : 8);
+#else
   INT address_size = ((Use_32_Bit_Pointers) ? 4 : 8);
+#endif
 
   if ( Trace_Init ) {
     #pragma mips_frequency_hint NEVER
@@ -13211,13 +12159,13 @@ Write_Symbol (
   if (ST_sclass(sym) == SCLASS_TEXT && !Has_Base_Block(sym)) {
     INT32 padding;
     padding = repeat * address_size;
-    if (Assembly && padding > 0) {
+    if ((Assembly || MiniR_Code) && padding > 0) {
 #ifdef TARG_MIPS
       if (CG_emit_non_gas_syntax)
-	fprintf(Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)padding);
+	fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)padding);
       else
 #endif
-      ASM_DIR_ZERO(Asm_File, padding);
+      ASM_DIR_ZERO(MiniR_Code ? MiniR_File : Asm_File, padding);
     }
     if (Object_Code) {
       Em_Add_Zeros_To_Scn (scn, padding, 1);
@@ -13229,7 +12177,12 @@ Write_Symbol (
   /* For local static symbols that do not have their own elf entry,
    * use the base symbol; funcs always have own elf entry. */
   basesym = sym;
-  if (Has_Base_Block(sym) && ST_is_export_local(sym) && ST_class(sym) != CLASS_FUNC) {
+  if (Has_Base_Block(sym) && 
+      ST_is_export_local(sym) && 
+#ifdef TARG_ST
+      Base_Offset_Is_Known (sym) &&
+#endif
+      ST_class(sym) != CLASS_FUNC) {
     Base_Symbol_And_Offset (sym, &basesym, &base_ofst);
   }
   if (Use_Separate_PU_Section (current_pu, basesym)) {
@@ -13259,29 +12212,43 @@ Write_Symbol (
 	}
     }
     const char *fptr = AS_FPTR;
-    if (Assembly) {
+    if (Assembly || MiniR_Code) {
 #ifdef TARG_MIPS
 	if (CG_emit_non_gas_syntax)
-	  fprintf(Asm_File, "\t%s\t", Use_32_Bit_Pointers ? ".word" : ".dword");
+	  fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", Use_32_Bit_Pointers ? ".word" : ".dword");
 	else
+#elsif TARG_ST
+      /* (cbr) support for half address relocation */
+      if (halfword)
+        fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t",  AS_HALF);
+      else
 #endif
-	fprintf (Asm_File, "\t%s\t", 
+	fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", 
 		(scn_ofst % address_size) == 0 ? 
 		AS_ADDRESS : AS_ADDRESS_UNALIGNED);
 	if (ST_class(sym) == CLASS_CONST) {
-		EMT_Write_Qualified_Name (Asm_File, basesym);
-		fprintf (Asm_File, " %+" SCNd64 "\n", base_ofst);
+		EMT_Write_Qualified_Name (MiniR_Code ? MiniR_File : Asm_File, basesym);
+		fprintf (MiniR_Code ? MiniR_File : Asm_File, " %+" SCNd64 "\n", base_ofst);
 	}
-	else if (ST_class(sym) == CLASS_FUNC && fptr && ! Get_Trace(TP_EMIT,0x2000)) {
-		fprintf (Asm_File, " %s(", fptr);
-		EMT_Write_Qualified_Name (Asm_File, sym);
-		fprintf (Asm_File, " %+" SCNd64 ")\n", sym_ofst);
+	else if (ST_class(sym) == CLASS_FUNC && fptr) {
+		fprintf (MiniR_Code ? MiniR_File : Asm_File, " %s(", fptr);
+		EMT_Write_Qualified_Name (MiniR_Code ? MiniR_File : Asm_File, sym);
+		fprintf (MiniR_Code ? MiniR_File : Asm_File, " %+" SCNd64 ")\n", sym_ofst);
 	}
 	else {
-		EMT_Write_Qualified_Name (Asm_File, sym);
-		fprintf (Asm_File, " %+" SCNd64 "\n", sym_ofst);
+		EMT_Write_Qualified_Name (MiniR_Code ? MiniR_File : Asm_File, sym);
+		fprintf (MiniR_Code ? MiniR_File : Asm_File, " %+" SCNd64 "\n", sym_ofst);
 	}
-	if (ST_class(sym) == CLASS_FUNC
+#ifdef TARG_ST
+	// [SC] Make sure the weak attribute is emitted, in case
+	// this is the only reference to the symbol.
+	if (ST_is_weak_symbol(sym)) {
+	  fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_WEAK);
+	  EMT_Write_Qualified_Name(MiniR_Code ? MiniR_File : Asm_File, sym);
+	  fprintf(MiniR_Code ? MiniR_File : Asm_File, "\n");
+	}
+#endif
+ 	if (ST_class(sym) == CLASS_FUNC
 #if defined(BUILD_OS_DARWIN)
 	&& 0 // Mach-O as 1.38 doesn't support .type
 #endif /* defined(BUILD_OS_DARWIN) */
@@ -13289,15 +12256,16 @@ Write_Symbol (
 	&& !CG_emit_non_gas_syntax
 #endif
 		) {
-		fprintf (Asm_File, "\t%s\t", AS_TYPE);
-		EMT_Write_Qualified_Name (Asm_File, sym);
-		fprintf (Asm_File, ", %s\n", AS_TYPE_FUNC);
+		fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_TYPE);
+		EMT_Write_Qualified_Name (MiniR_Code ? MiniR_File : Asm_File, sym);
+		fprintf (MiniR_Code ? MiniR_File : Asm_File, ", %s\n", AS_TYPE_FUNC);
 	}
     } 
     scn_ofst += address_size;
   }
   return scn_ofst;
 }
+
 
 /* ====================================================================
  *
@@ -13340,13 +12308,13 @@ Write_Label (
   if (!Has_Base_Block(sym)) {
     INT32 padding;
     padding = repeat * address_size;
-    if (Assembly && padding > 0) {
+    if ((Assembly || MiniR_Code) && padding > 0) {
 #ifdef TARG_MIPS
       if (CG_emit_non_gas_syntax)
-	fprintf(Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)padding);
+	fprintf(Minir_Code ? MiniR_File : Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)padding);
       else
 #endif
-      ASM_DIR_ZERO(Asm_File, padding);
+      ASM_DIR_ZERO(Minir_Code ? MiniR_File : Asm_File, padding);
     }
     if (Object_Code) {
       Em_Add_Zeros_To_Scn (scn, padding, 1);
@@ -13376,28 +12344,36 @@ Write_Label (
   }
 
   for ( i = 0; i < repeat; i++ ) {
-    if (Assembly) {
+    if (Assembly || MiniR_Code) {
 #ifdef TARG_MIPS
 	if (CG_emit_non_gas_syntax)
-	  fprintf(Asm_File, "\t%s\t", Use_32_Bit_Pointers ? ".word" : ".dword");
+	  fprintf(Minir_Code ? MiniR_File : Asm_File, "\t%s\t", Use_32_Bit_Pointers ? ".word" : ".dword");
 	else
 #endif
-	fprintf (Asm_File, "\t%s\t", 
+	fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", 
 		(scn_ofst % address_size) == 0 ? 
 		AS_ADDRESS : AS_ADDRESS_UNALIGNED);
-	fputs (LABEL_name(lab), Asm_File);
+	fputs (LABEL_name(lab), MiniR_Code ? MiniR_File : Asm_File);
 	if (lab_ofst != 0)
-		fprintf (Asm_File, " %+" SCNd64 , lab_ofst);
-	fputc ('\n', Asm_File);
+		fprintf (MiniR_Code ? MiniR_File : Asm_File, " %+" SCNd64 , lab_ofst);
+	fputc ('\n', MiniR_Code ? MiniR_File : Asm_File);
     } 
     if (Object_Code) {
     	Em_Add_Address_To_Scn (scn, EMT_Put_Elf_Symbol (basesym), base_ofst, 1);
     }
     scn_ofst += address_size;
   }
+#ifdef TARG_ST
+  // [CL]
+  Set_LABEL_emitted(lab);
+#endif
   return scn_ofst;
 }
 
+/* ====================================================================
+ *    Write_Symdiff (lab1, sym2idx, scn_idx, scn_ofst, repeat, size)
+ * ====================================================================
+ */
 static Elf64_Word
 Write_Symdiff (
   LABEL_IDX lab1,	/* left symbol */
@@ -13432,8 +12408,14 @@ Write_Symdiff (
   Is_True (sym2, ("cgemit: Symdiff sym2 is null"));
   Is_True (Has_Base_Block(sym2), ("cgemit: Symdiff sym2 not allocated"));
 
-  basesym1 = BB_cold(Get_Label_BB(lab1)) ? cold_base : text_base;
+  BB *labb = Get_Label_BB(lab1);
+  basesym1 = BB_cold(Get_Label_BB(lab1)) && !MiniR_Code ? cold_base : text_base;
   base1_ofst = Get_Label_Offset(lab1);
+#ifdef TARG_ST
+  if (Object_Code) {
+    FmtAssert (Base_Offset_Is_Known (sym2), ("Unknown offset in Write_Symdiff"));
+    
+#endif
   Base_Symbol_And_Offset (sym2, &basesym2, &base2_ofst);
   if (Use_Separate_PU_Section(current_pu,basesym2)) {
 	/* use PU text section rather than generic one */
@@ -13449,25 +12431,31 @@ Write_Symdiff (
 	}
 	val = val << 16;	/* for Add_Bytes */
   }
-
+#ifdef TARG_ST
+  } /* Object_Code */
+#endif
   for ( i = 0; i < repeat; i++ ) {
-    if (Assembly) {
+    if (Assembly || MiniR_Code) {
 #ifdef KEY
       if (etable)
-      	fputs ("\t.uleb128\t", Asm_File);
+      	fputs ("\t.uleb128\t", MiniR_Code ? MiniR_File : Asm_File);
       else
 #endif // KEY
-      fprintf (Asm_File, "\t%s\t", (size == 2 ? AS_HALF : AS_WORD));
-      fputs (LABEL_name(lab1), Asm_File);
-      fputc ('-', Asm_File);
-      EMT_Write_Qualified_Name (Asm_File, sym2);
-      fputc ('\n', Asm_File);
+      fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", (size == 2 ? AS_HALF : AS_WORD));
+      fputs (LABEL_name(lab1), MiniR_Code ? MiniR_File : Asm_File);
+      fputc ('-', MiniR_Code ? MiniR_File : Asm_File);
+      EMT_Write_Qualified_Name (MiniR_Code ? MiniR_File : Asm_File, sym2);
+      fputc ('\n', MiniR_Code ? MiniR_File : Asm_File);
     } 
     if (Object_Code) {
       Em_Add_Bytes_To_Scn (scn, (char *) &val, size, 1);
     }
     scn_ofst += size;
   }
+#ifdef TARG_ST
+  // [CL]
+  Set_LABEL_emitted(lab1);
+#endif
   return scn_ofst;
 }
 
@@ -13501,7 +12489,7 @@ Emit_PIC_version (ST * st, Elf64_Word scn_ofst)
   return scn_ofst + 4;
 }
 #endif
-
+
 /* ====================================================================
  *
  * Write_INITV
@@ -13530,13 +12518,18 @@ Write_INITV (INITV_IDX invidx, INT scn_idx, Elf64_Word scn_ofst)
   static bool emit_typeinfo=false;
 #endif
 
+  if (MiniR_Code)
+    fprintf(MiniR_File, "    init: ");
   switch ( INITV_kind(inv) ) {
     case INITVKIND_ZERO:
       tcon = Host_To_Targ (INITV_mtype (inv), 0);
 #ifdef KEY
       if (!emit_typeinfo)
-      scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat2 (inv),
-				etable, format);
+	if (Assembly)
+	  scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat2 (inv),
+				 etable, format);
+	else if (MiniR_Code)
+	  fprintf(MiniR_File, "[ { type: %s, value: 0, repeat:%d } ]\n", Mtype_String(INITV_mtype(inv)), INITV_repeat2 (inv));
 #ifdef TARG_X8664
       else if (Gen_PIC_Call_Shared || Gen_PIC_Shared) // emit_typeinfo
       {
@@ -13551,26 +12544,40 @@ Write_INITV (INITV_IDX invidx, INT scn_idx, Elf64_Word scn_ofst)
 
     case INITVKIND_ONE:
       tcon = Host_To_Targ (INITV_mtype (inv), 1);
+      if (Assembly)
 #ifdef KEY
-      scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat2 (inv),
-				etable, format);
+	scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat2 (inv),
+			       etable, format);
 #else
-      scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat2 (inv));
+        scn_ofst = Write_TCON (&tcon, scn_idx, scn_ofst, INITV_repeat2 (inv));
 #endif // KEY
+      else if (MiniR_Code)
+	if (INITV_repeat2(inv) > 1)
+	  fprintf(MiniR_File, "[ { type: %s, value: 1, repeat:%d } ]\n", Mtype_String(INITV_mtype(inv)), INITV_repeat2 (inv));
+        else 
+	  fprintf(MiniR_File, "[ { type: %s, value: 1 } ]\n", Mtype_String(INITV_mtype(inv)));
+
       break;
     case INITVKIND_VAL:
+      if (Assembly)
 #ifdef KEY
-      scn_ofst = Write_TCON (&INITV_tc_val(inv), scn_idx, scn_ofst,
-                              INITV_repeat2(inv), etable, format);
+	scn_ofst = Write_TCON (&INITV_tc_val(inv), scn_idx, scn_ofst,
+			       INITV_repeat2(inv), etable, format);
 #else
-      scn_ofst = Write_TCON (&INITV_tc_val(inv), scn_idx, scn_ofst, 
+        scn_ofst = Write_TCON (&INITV_tc_val(inv), scn_idx, scn_ofst, 
 			      INITV_repeat2(inv));
 #endif // KEY
+      else if (MiniR_Code)
+	if (INITV_repeat2(inv) > 1)
+	  fprintf(MiniR_File, "[ { type: %s, value: %s, repeat:%d } ]\n", Mtype_String(INITV_mtype(inv)), Targ_Print (NULL, INITV_tc_val(inv)), INITV_repeat2 (inv));
+	else
+	  fprintf(MiniR_File, "[ { type: %s, value: %s } ]\n", Mtype_String(INITV_mtype(inv)), Targ_Print (NULL, INITV_tc_val(inv)));
+
       break;
 
     case INITVKIND_SYMOFF:
       st = &St_Table[INITV_st(inv)];
-#ifdef TARG_X8664
+#if defined TARG_ST || defined TARG_X8664
       if ((Gen_PIC_Call_Shared || Gen_PIC_Shared) && emit_typeinfo)
       { // handle it differently
 	scn_ofst = Emit_PIC_version (st, scn_ofst);
@@ -13601,6 +12608,24 @@ Write_INITV (INITV_IDX invidx, INT scn_idx, Elf64_Word scn_ofst)
       }
       break;
 
+#ifdef TARG_ST
+      /* (cbr) support for half address relocation */
+    case INITVKIND_SYMOFF16:
+      st = &St_Table[INITV_st(inv)];
+      switch (ST_sclass(st)) {
+	case SCLASS_AUTO:
+	case SCLASS_FORMAL:
+          DevAssert(FALSE, ("wrong class symoff16"));
+	  break;
+          
+	default:
+          scn_ofst = Write_Symbol ( st, INITV_ofst(inv),
+                                    scn_idx, scn_ofst, INITV_repeat1(inv), true);
+	   break;
+      }
+      break;
+#endif
+
     case INITVKIND_LABEL:
 	lab = INITV_lab(inv);
 #ifdef KEY
@@ -13612,6 +12637,15 @@ Write_INITV (INITV_IDX invidx, INT scn_idx, Elf64_Word scn_ofst)
 #endif // KEY
 	scn_ofst = Write_Label (lab, 0, scn_idx, scn_ofst, INITV_repeat1(inv));
 	break;
+
+#ifdef TARG_ST
+/* (cbr) DDTSst24451. add support for label diffs initializers */
+ case INITVKIND_LABDIFF:
+      scn_ofst = Write_Labdiff ( INITV_labd0(inv), INITV_labd1(inv),
+				scn_idx, scn_ofst, INITV_repeat1(inv), 4);
+      break;
+#endif
+
     case INITVKIND_SYMDIFF:
 #ifdef KEY
       scn_ofst = Write_Symdiff ( INITV_lab1(inv), INITV_st2(inv),
@@ -13652,14 +12686,14 @@ Write_INITV (INITV_IDX invidx, INT scn_idx, Elf64_Word scn_ofst)
       break;
 
     case INITVKIND_PAD:
-      if (Assembly && (INITV_pad(inv)*INITV_repeat1(inv) > 0)) {
+      if ((Assembly || MiniR_Code) && (INITV_pad(inv)*INITV_repeat1(inv) > 0)) {
 #ifdef TARG_MIPS
 	if (CG_emit_non_gas_syntax)
-	  fprintf(Asm_File, "\t%s %" SCNd64 "\n", ".space", 
+	  fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s %" SCNd64 "\n", ".space", 
 		  (INT64)(INITV_pad(inv) * INITV_repeat1(inv)));
 	else
 #endif
-        ASM_DIR_ZERO(Asm_File, INITV_pad(inv) * INITV_repeat1(inv));
+        ASM_DIR_ZERO(MiniR_Code ? MiniR_File : Asm_File, INITV_pad(inv) * INITV_repeat1(inv));
       }
       if (Object_Code) {
 	Em_Add_Zeros_To_Scn (scn, INITV_pad(inv) * INITV_repeat1(inv), 1);
@@ -13680,8 +12714,16 @@ Generate_Exception_Table_Header (INT scn_idx,
                                  LABEL_IDX *);
 #endif // KEY
 
-/* Emit the initialized object to the object file */
-static void
+#define ST_type_string(st) ( ST_class(st) == CLASS_FUNC ? "function" : ((ST_class(st) == CLASS_VAR ? "object": "unknown")) )
+
+
+/* ====================================================================
+ *    Write_INITO (inop, scn_idx, scn_ofst)
+ *
+ *    Emit the initialized object to the object file 
+ * ====================================================================
+ */
+static Elf64_Word
 Write_INITO (
   INITO* inop,		/* Constant to emit */
   INT scn_idx,		/* Section to emit it into */
@@ -13706,11 +12748,11 @@ Write_INITO (
       if (Assembly) {
 #ifdef TARG_MIPS
 	if (CG_emit_non_gas_syntax)
-	  fprintf(Asm_File, "\t%s %" SCNd64 "\n", ".space", 
+	  fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s %" SCNd64 "\n", AS_SPACE, 
 		  (INT64)(inito_ofst - scn_ofst));
 	else
 #endif
-	ASM_DIR_ZERO(Asm_File, (INT32)(inito_ofst - scn_ofst));
+	  ASM_DIR_ZERO(MiniR_Code ? MiniR_File : Asm_File, (INT32)(inito_ofst - scn_ofst));
       }
       if (Object_Code) {
 	Em_Add_Zeros_To_Scn ( scn, inito_ofst - scn_ofst, 1 );
@@ -13729,6 +12771,18 @@ Write_INITO (
 	  Print_Label (Asm_File, sym, TY_size(ST_type(sym)));
         }
     }
+    if (MiniR_Code) {
+        char *name = ST_name(sym);
+        if (name != NULL && *name != 0) {
+	  const char* pfx = "    ";
+	  fprintf(MiniR_File, "  - label: ");
+	  EMT_Write_Qualified_Name(MiniR_File, sym);
+	  fprintf(MiniR_File,"\n");
+	  fprintf(MiniR_File, "%sexport: %s\n", pfx, Export_String(ST_export(sym)));
+	  fprintf(MiniR_File, "%ssize: %" SCNd64 "\n", pfx, TY_size(ST_type(sym)));
+	  fprintf(MiniR_File, "%ssection: %s\n", pfx, ST_name(em_scn[scn_idx].sym));
+	}
+    }
     if (Object_Code && ! ST_is_export_local(sym)) {
         EMT_Put_Elf_Symbol (sym);
     }
@@ -13738,7 +12792,12 @@ Write_INITO (
      */
     if ( INITO_val(ino) == (INITO_IDX) NULL ) {
       if ( ST_class(sym) == CLASS_CONST ) {
-	scn_ofst = Write_TCON (&ST_tcon_val(sym), scn_idx, scn_ofst, 1);
+	TCON *tc=&ST_tcon_val(sym);
+	if (Assembly)
+	  scn_ofst = Write_TCON (tc, scn_idx, scn_ofst, 1);
+	else if (MiniR_Code) {
+	  fprintf(MiniR_File, "    init: [ { type: %s, value: %s } ]\n", Mtype_String(TCON_ty(*tc)), Targ_Print (NULL, *tc));
+	}
       }
     } else {
 	INITV_IDX inv;
@@ -13762,13 +12821,21 @@ Write_INITO (
                   (INITV_flags (Initv_Table[inv]) == INITVFLAGS_ACTION_REC))
             {
                 action_table_started = true;
-                fprintf ( Asm_File, "%s:\n", LABEL_name(labels[0]));
+		if (Assembly)
+		  fprintf ( Asm_File, "%s:\n", LABEL_name(labels[0]));
+#ifdef TARG_ST
+		Set_LABEL_emitted(labels[0]);
+#endif
             }
 	    if (range_table && !type_label_emitted && 
 	    	INITV_flags(Initv_Table[inv]) == INITVFLAGS_EH_SPEC)
 	    {
 	    	type_label_emitted = true;
-            	fprintf ( Asm_File, "%s:\n", LABEL_name(labels[1]));
+		if (Assembly)
+		  fprintf ( Asm_File, "%s:\n", LABEL_name(labels[1]));
+#ifdef TARG_ST
+		Set_LABEL_emitted(labels[1]);
+#endif
 	    }
             scn_ofst = Write_INITV (inv, scn_idx, scn_ofst, range_table,
 	    		range_table ? INITV_flags (Initv_Table[inv]) : 0);
@@ -13782,7 +12849,11 @@ Write_INITO (
 			!INITV_flags(Initv_Table[INITV_next(inv)])))
 	    	{
 	    	    type_label_emitted = true;
-            	    fprintf ( Asm_File, "%s:\n", LABEL_name(labels[1]));
+		if (Assembly) 
+            	    fprintf (Asm_File, "%s:\n", LABEL_name(labels[1]));
+#ifdef TARG_ST
+		Set_LABEL_emitted(labels[1]);
+#endif
 	    	}
 	    }
 #else
@@ -13790,13 +12861,27 @@ Write_INITO (
 #endif // KEY
         }
 #ifdef KEY
-        if (range_table && !type_label_emitted)
-            fprintf ( Asm_File, "%s:\n", LABEL_name(labels[1]));
+        if (range_table && !type_label_emitted) {
+	  if (Assembly)
+	    fprintf ( Asm_File, "%s:\n", LABEL_name(labels[1]));
+#ifdef TARG_ST
+	  Set_LABEL_emitted(labels[1]);
+#endif
+	}
 #endif // KEY
+#ifdef TARG_ST
+	if (range_table && !action_table_started) {
+	  if (Assembly)
+	    fprintf ( Asm_File, "%s:\n", LABEL_name(labels[0]));
+	  Set_LABEL_emitted(labels[0]);
+	}
+#endif
     }
     if (Assembly) {
     	fprintf ( Asm_File, "\t%s end of initialization for %s\n", ASM_CMNT, ST_name(sym) );
     }
+
+  return scn_ofst;
 }
 
 #ifdef KEY
@@ -13807,12 +12892,17 @@ Write_Diff (
   INT scn_idx,          /* Section to emit it in */
   Elf64_Word scn_ofst)  /* Section offset to emit it at */
 {
-      fputs ("\t.uleb128\t", Asm_File);
-      fputs (LABEL_name(lab1), Asm_File);
-      fputc ('-', Asm_File);
-      fputs (LABEL_name(lab2), Asm_File);
-      fputc ('\n', Asm_File);
+      fputs ("\t.uleb128\t", MiniR_Code ? MiniR_File : Asm_File);
+      fputs (LABEL_name(lab1), MiniR_Code ? MiniR_File : Asm_File);
+      fputc ('-', MiniR_Code ? MiniR_File : Asm_File);
+      fputs (LABEL_name(lab2), MiniR_Code ? MiniR_File : Asm_File);
+      fputc ('\n', MiniR_Code ? MiniR_File : Asm_File);
 
+#ifdef TARG_ST
+      // [CL]
+      Set_LABEL_emitted(lab1);
+      Set_LABEL_emitted(lab2);
+#endif
       return scn_ofst+4;
 }
 
@@ -14002,6 +13092,7 @@ int INITV_Removable(INITV & inv) {
 
   return TRUE;
 }
+
 //This routine can judge whether Inito print into asm file or not.  
 int Inito_Removable(INITO* inop) {
   INITO ino = *inop;
@@ -14013,22 +13104,30 @@ int Inito_Removable(INITO* inop) {
   }
   return TRUE;
 }
-// This routine can be called multiple times for the global symtab;
-// we do this so that objects are emitted in order.
-// For each section, some objects are in local symtab, and some in global.
-// We keep track of the last global symbol that has been processed
-// so that we only process new symbols.
-//
-static void
-Process_Initos_And_Literals (SYMTAB_IDX stab)
+
+/* ====================================================================
+ *    Process_Initos_And_Literals (stab)
+ *
+ *    This routine can be called multiple times for the global symtab;
+ *    we do this so that objects are emitted in order.
+ *    For each section, some objects are in local symtab, and some in global.
+ *    We keep track of the last global symbol that has been processed
+ *    so that we only process new symbols.
+ *
+ * ====================================================================
+ */
+void
+Process_Initos_And_Literals (
+  SYMTAB_IDX stab
+)
 {
-  static vector<bool> st_processed;
+  static std::vector<bool> st_processed;
   if (st_processed.size() != ST_Table_Size(GLOBAL_SYMTAB)) {
     st_processed.resize(ST_Table_Size(GLOBAL_SYMTAB), false);
   }
 
-  vector<ST*> st_list;
-  vector<ST*>::iterator st_iter;
+  std::vector<ST*> st_list;
+  std::vector<ST*>::iterator st_iter;
 
   typedef 
   hash_map < ST_IDX, INITO*, __gnu_cxx::hash<ST_IDX>, std::equal_to<ST_IDX> > ST_INITO_MAP;
@@ -14037,6 +13136,10 @@ Process_Initos_And_Literals (SYMTAB_IDX stab)
   UINT i;
   static UINT last_inito = 1;
   
+  //TODO: put only if non empty
+  if (MiniR_Code)
+    fprintf(MiniR_File, "objects:\n");
+
   // First walk the INITOs from the global table
   for (i = last_inito; i < INITO_Table_Size(GLOBAL_SYMTAB); ++i) {
     INITO* ino = &Inito_Table(GLOBAL_SYMTAB,i);
@@ -14090,9 +13193,13 @@ Process_Initos_And_Literals (SYMTAB_IDX stab)
 #ifdef KEY
       unprocessed_global_constants = TRUE;
 #endif
+#ifdef TARG_ST
+      ST *base = Base_Symbol (st);
+#else
       INT64 ofst;
       ST* base;
       Base_Symbol_And_Offset(st, &base, &ofst);
+#endif
       if (ST_class(base) != CLASS_BLOCK || !STB_section(base)) {
         continue; // not allocated
       }
@@ -14107,13 +13214,10 @@ Process_Initos_And_Literals (SYMTAB_IDX stab)
   skip_global_constants:
 #endif
 
-  // Print_ST_List(st_list, "UNSORTED");
+  // lexicographical sort: section, offset, size
   std::stable_sort (st_list.begin(), st_list.end(), size_lt);
-  // Print_ST_List(st_list, "SORTED BY SIZE");
   std::stable_sort (st_list.begin(), st_list.end(), offset_lt);
-  // Print_ST_List(st_list, "SORTED BY OFFSET");
   std::stable_sort (st_list.begin(), st_list.end(), section_lt);
-  // Print_ST_List(st_list, "SORTED BY SECTION");
 
   for (st_iter = st_list.begin(); st_iter != st_list.end(); ++st_iter) {
 
@@ -14145,20 +13249,25 @@ Process_Initos_And_Literals (SYMTAB_IDX stab)
       // may need padding between objects in same section,
       // so always change origin
       Change_Section_Origin (base, ofst);
+      if (!MiniR_Code) // the alignment only depends on the type
 #ifdef KEY
-      if (CG_file_scope_asm_seen &&
-          TY_align (ST_type (st)) > 1)
-        fprintf( Asm_File, "\t%s\t%d\n", AS_ALIGN, 
+	if (CG_file_scope_asm_seen &&
+	    TY_align (ST_type (st)) > 1)
+	  fprintf( Asm_File, "\t%s\t%d\n", AS_ALIGN, 
 #if defined(BUILD_OS_DARWIN)
                  logtwo (TY_align (ST_type (st)))
 #else /* defined(BUILD_OS_DARWIN) */
-                 TY_align (ST_type (st))
+		 TY_align (ST_type (st))
 #endif /* defined(BUILD_OS_DARWIN) */
-               );
-      else
-        fprintf ( Asm_File, "\t%s\t0\n", AS_ALIGN );
+		   );
+	else
+	  fprintf ( Asm_File, "\t%s\t0\n", AS_ALIGN );
 #endif
       Write_INITO (ino, STB_scninfo_idx(base), ofst);
+#ifdef TARG_ST
+      ofst = Write_INITO (ino, STB_scninfo_idx(base), ofst);
+      Set_Section_Offset(base, ofst);
+#endif      
     }
 
     else {
@@ -14180,7 +13289,7 @@ Process_Initos_And_Literals (SYMTAB_IDX stab)
 #ifdef KEY
       if (CG_file_scope_asm_seen &&
           TY_align (ST_type (st)) > 1)
-        fprintf( Asm_File, "\t%s\t%d\n", AS_ALIGN, 
+        fprintf( MiniR_Code ? MiniR_File : Asm_File, "\t%s\t%d\n", AS_ALIGN, 
 #if defined(BUILD_OS_DARWIN)
                  logtwo (TY_align (ST_type (st)))
 #else /* defined(BUILD_OS_DARWIN) */
@@ -14188,18 +13297,109 @@ Process_Initos_And_Literals (SYMTAB_IDX stab)
 #endif /* defined(BUILD_OS_DARWIN) */
                );
       else
-        fprintf ( Asm_File, "\t%s\t0\n", AS_ALIGN );
+        fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\t%s\t0\n", AS_ALIGN );
+#endif
 
-#ifdef TARG_X8664 // limit to x86_64 for now
-      if (!Emit_Global_Data) // not for symbols in ipa symtab
-        fprintf ( Asm_File, TCON_Label_Format ":\n",
-                  ST_IDX_index(ST_st_idx(st)) );
+#ifdef TARG_ST
+      // [CL] handle the case of generation of symtab.s
+      // in IPA mode. Although local, such symbols must
+      // be 'promoted' to global so that they can be
+      // accessed by the module they belong to
+      if (Emit_Global_Data) {
+	fprintf(Output_File, "\t%s\t", AS_GLOBAL);
+	EMT_Write_Qualified_Tcon_Name(Output_File, st);
+	fprintf(Output_File, "\n");
+	// [CL] output as hidden/internal so that we are close to the
+	// export_local meaning
+#ifdef AS_INTERNAL
+	if (ST_export(st) == EXPORT_LOCAL_INTERNAL) {
+	  fprintf (Output_File, "\t%s\t", AS_INTERNAL);
+	  EMT_Write_Qualified_Tcon_Name(Output_File, st);
+	  fprintf(Output_File, "\n");
+	} else
 #endif
+#ifdef AS_HIDDEN
+	  {
+	    fprintf (Output_File, "\t%s\t", AS_HIDDEN);
+	    EMT_Write_Qualified_Tcon_Name(Output_File, st);
+	    fprintf(Output_File, "\n");
+	  }
 #endif
-      Write_TCON (&ST_tcon_val(st), STB_scninfo_idx(base), ofst, 1);
+      }
+      fprintf (Output_File, "\t%s\t", AS_TYPE);
+      EMT_Write_Qualified_Tcon_Name (Output_File, st);
+#  ifdef AS_MOVEABLE
+      BOOL moveable;
+      int size = TY_size(ST_type(st));
+      
+      if (Emit_Global_Data) {
+	/* TB: Tell this symbol is moveable when not in Emit_Global_Data (ipa) */
+	moveable = FALSE;
+      }
+      else if (ST_is_initialized (st)) {
+	/* [SC]: Not moveable if initializer is larger than symbol size */
+	INITV_IDX inito_idx = ST_has_inito (st);
+	if (inito_idx != 0 && Get_INITO_Size (inito_idx) > size)
+	  moveable = FALSE;
+      else
+	  moveable = TRUE;
+      }
+      else {
+	moveable = TRUE;
+      }
+
+      fprintf (Output_File, ", %s", AS_TYPE_OBJECT);
+      if (moveable) {
+	fprintf (Output_File, ", %s", AS_MOVEABLE);
+      }
+#  ifdef AS_USED
+      /* TB: add gnu used  attibute when needed */
+      if (ST_is_used(st)) {
+	fprintf (Output_File, ", %s", AS_USED);
+      }
+#endif
+      fprintf (Output_File, "\n");
+#  else //AS_MOVEABLE
+      fprintf (Output_File, ", %s\n", AS_TYPE_OBJECT);
+#endif
+#ifdef AS_SIZE
+      {
+	TCON tcon = ST_tcon_val(st);
+	BOOL add_null = TCON_add_null(tcon);
+	int size = 0;
+	if ( TCON_ty(tcon) == MTYPE_STRING )
+	  size = (Targ_String_Length (tcon) + (add_null ? 1 : 0));
+	else
+	  size = TY_size(Be_Type_Tbl(TCON_ty(tcon)));
+	if (size != 0) {
+	  /* if size is given, then emit value for asm */
+	  fprintf (Output_File, "\t%s\t", AS_SIZE);
+	  EMT_Write_Qualified_Tcon_Name(Output_File, st);
+	  fprintf (Output_File, ", %d\n", size);
     }
   }
+#endif
+      EMT_Write_Qualified_Tcon_Name(Output_File, st);
+      fprintf(Output_File, ":\n");
+#else //Not TARG_ST
+#ifdef KEY
+#ifdef TARG_X8664 // limit to x86_64 for now
+      if (!Emit_Global_Data) // not for symbols in ipa symtab
+        fprintf ( MiniR_Code ? MiniR_File : Asm_File, TCON_Label_Format ":\n",
+                  ST_IDX_index(ST_st_idx(st)) );
+#endif  
+#endif
+#endif
+      ofst = Write_TCON (&ST_tcon_val(st), STB_scninfo_idx(base), ofst, 1);
+#ifdef TARG_ST
+      Set_Section_Offset(base, ofst);
+#endif
+    }
+  }
+
+  return;
 }
+
 
 
 // Write all distr_array INITOs from the global symtab
@@ -14287,9 +13487,6 @@ Process_Bss_Data (SYMTAB_IDX stab)
     last_global_index = ST_Table_Size(GLOBAL_SYMTAB);
   }
 
-  // It's a bit counter-intuitive, but to get the list sorted
-  // by section and then by offset within section,
-  // should stable_sort in reverse order (offset then section).
   std::stable_sort (bss_list.begin(), bss_list.end(), size_lt);
   std::stable_sort (bss_list.begin(), bss_list.end(), offset_lt);
   std::stable_sort (bss_list.begin(), bss_list.end(), section_lt);
@@ -15139,6 +14336,146 @@ EMT_Emit_PU ( ST *pu, DST_IDX pu_dst, WN *rwn )
 
   Finalize_Unwind_Info();
 }
+
+
+void
+MINIR_Dump_PU( ST *pu, DST_IDX pu_dst, WN *rwn )
+{
+  ST *sym;
+  ST *base;
+  BB *bb;
+  INT Initial_Pu_PC;
+  const char *sep;
+  const char *pfx;
+  const char *bb_pfx;
+  static int function_num;
+  int i;
+
+  FmtAssert(REGION_First_BB != NULL, ("Precondition on function failed"));
+  FmtAssert(Cur_PU_Name != NULL, ("Precondition on function failed"));
+
+  if ( PU_is_extern_inline (Pu_Table[ST_pu(pu)]) ) {
+    return;
+  }
+  Init_ST_elf_index(CURRENT_SYMTAB);
+//  cur_section = NULL;
+
+  static UINT last_global_index = 1;
+  bool has_sections = false;
+  for (i = last_global_index; i < ST_Table_Size(GLOBAL_SYMTAB); ++i) {
+	ST* sym = &St_Table(GLOBAL_SYMTAB,i);
+	if (ST_class(sym) == CLASS_BLOCK && STB_section(sym)) {
+	  if (!has_sections) {
+	    fprintf(MiniR_File, "sections:\n");
+	    has_sections=true;
+	  }
+	  Init_Section(sym);
+	}
+	// emit commons here so order is preserved for datapools
+    	if (ST_sclass(sym) == SCLASS_COMMON) {
+		if (ST_is_not_used (sym)) continue;
+		if (ST_assigned_to_dedicated_preg(sym)) continue;
+		if (ST_elf_index(sym)==0) { //EMT_Put_Elf_Symbol 
+		  if (ST_class(sym) == CLASS_FUNC) {
+		    fprintf (MiniR_File, "\t%s\t", AS_TYPE);
+		    EMT_Write_Qualified_Name (MiniR_File, sym);
+		    fprintf (MiniR_File, ", %s\n", AS_TYPE_FUNC);
+		  } else if (ST_class(sym) == CLASS_VAR) {
+		    Print_Common (MiniR_File, sym);
+		  } 
+		  Set_ST_elf_index(sym, 1);
+		}
+    	}
+  }
+  last_global_index = ST_Table_Size(GLOBAL_SYMTAB);
+
+  // emit global bss first so .org is correct
+  Process_Bss_Data (GLOBAL_SYMTAB);
+
+  /* Initialize any sections that might have been created by the backend. */
+  FOREACH_SYMBOL (CURRENT_SYMTAB, sym, i) {
+	base = Base_Symbol(sym);
+	if (ST_class(base) == CLASS_BLOCK && STB_section(base)) {
+		Init_Section(base);
+	}
+  }
+
+  Create_Cold_Text_Section();
+
+  //  Setup_Text_Section_For_PU (pu);
+
+  Initial_Pu_PC = PC;
+  Set_ST_ofst(pu, PC);
+
+  if (function_num++ == 0) {
+    fprintf(MiniR_File, "functions:\n");
+  }
+  fprintf(MiniR_File, "  - label: %s\n", ST_name(pu));
+  pfx = "    ";
+  fprintf(MiniR_File, "%sexport: %s\n", pfx, Export_String(ST_export(pu)));
+  //  fprintf(MiniR_File, "%sused: [%s", pfx, (ST_is_used(pu) ? "yes" : "no"));
+  fprintf(MiniR_File, "%sentries: [", pfx);
+  sep = "";
+  for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
+    if (BB_entry(bb)) {
+      fprintf(MiniR_File, "%s%s", sep, BB_Name(bb));
+      sep = ", ";
+    }
+  }
+  fprintf(MiniR_File, "]\n");
+  fprintf(MiniR_File, "%sexits: [", pfx);
+  sep = "";
+  for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
+    if (BB_exit(bb)) {
+      fprintf(MiniR_File, "%s%s", sep, BB_Name(bb));
+      sep = ", ";
+    }
+  }
+  fprintf(MiniR_File, "]\n");
+  if (cur_section != PU_base) {
+    /* reset to text section */
+    fprintf (MiniR_File, "%s\n\t%s %s\n", pfx, AS_SECTION, ST_name(PU_base));
+    cur_section = PU_base;
+  }
+  FOREACH_SYMBOL (CURRENT_SYMTAB, sym, i) {
+    if (ST_is_not_used(sym)) continue;
+    if (ST_sclass(sym) == SCLASS_COMMON) {
+      EMT_Put_Elf_Symbol (sym);
+    }
+    /* put all extern symbols into the elf symbol table. */
+    if ((PU_src_lang(Get_Current_PU()) == PU_F77_LANG 
+	|| PU_src_lang(Get_Current_PU()) == PU_F90_LANG) &&
+	ST_sclass(sym) == SCLASS_EXTERN && 
+	! ST_is_export_local(sym)) 
+    { 
+      fprintf (MiniR_File, "%s%s\t %s\n", pfx, AS_GLOBAL, ST_name(sym)); 
+    }
+
+    if (ST_class(sym) == CLASS_VAR && ST_sclass(sym) == SCLASS_AUTO) {
+      if (Has_Base_Block(sym)) {
+	INT64 ofst;
+	Base_Symbol_And_Offset(sym, &base, &ofst);
+	fprintf ( MiniR_File, "\t%s %s = %" SCNd64 "\n",
+		  ASM_CMNT, ST_name(sym), ofst);
+      }
+    }
+  }
+ 
+  fprintf(MiniR_File, "%sbbs:\n", pfx);
+
+  bb_pfx = "        ";
+  for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
+    Setup_Text_Section_For_BB(bb);
+    // Assemble_BB
+    fprintf(MiniR_File, "%s  - ", pfx);
+    CG_Dump_Minir_BB(bb, bb_pfx, MiniR_File);
+  }
+  Setup_Text_Section_For_BB(REGION_First_BB);
+
+  Process_Initos_And_Literals ( CURRENT_SYMTAB );
+//  MINIR_Dump_Bss_Data( CURRENT_SYMTAB );
+}
+
 
 
 static INT format_operand(

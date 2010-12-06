@@ -243,6 +243,7 @@ Process_Command_Line (INT argc, char **argv)
 			Obj_File_Name = cp + 2;
 			/* fall through */
 		    case 's':	    /* CG-specific */
+		    case 'm':
 		    case 'a':
 			add_phase_args (PHASE_CG, argv[i]);
 			break;

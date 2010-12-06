@@ -505,7 +505,8 @@ Targ_Emit_EH_Const (FILE *fl,	    /* File to which to write */
     	encoding = SLEBDIR;
     
     /* loc only used here (in a comment in the output file) */
-    fprintf(fl, "\t%s offset %1ld\n", ASM_CMNT, loc);
+    if (Assembly)
+      fprintf(fl, "\t%s offset %1ld\n", ASM_CMNT, loc);
 
     /* Loop until the repeat count is exhausted. For simple constants we'll
      * optimize the emission, otherwise we just repeat the whole directive.

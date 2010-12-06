@@ -1633,6 +1633,33 @@ Export_Name (INT e)
 } // Export_Name
 
 const char *
+Export_String (INT e)
+{
+    switch (e) {
+    case EXPORT_LOCAL:
+	return "local";
+    case EXPORT_LOCAL_INTERNAL:
+	return "local internal";
+    case EXPORT_INTERNAL:
+	return "internal";
+    case EXPORT_HIDDEN:
+	return "hidden";
+    case EXPORT_PROTECTED:
+	return "protected";
+    case EXPORT_PREEMPTIBLE:
+	return "preemptible";
+    case EXPORT_OPTIONAL:
+	return "optional";
+    default:
+	{
+	  static char buf[32];
+	  sprintf(buf, "Unknown_Export_Scope(%d)", e);
+	  return buf;
+	}
+    }
+} // Export_Name
+
+const char *
 Kind_Name (INT k)
 {
     struct knm {
@@ -1663,6 +1690,56 @@ Kind_Name (INT k)
     return r;
 } // Kind_Name
 
+const char *
+Mtype_String (INT mt)
+{
+  switch (mt) {
+  case MTYPE_B:
+    return "boolean";
+  case MTYPE_I1:
+    return "8-bit-signed-integer";
+  case MTYPE_I2:
+    return "16-bit-signed-integer";
+  case MTYPE_I4:
+    return "32-bit-signed-integer";
+  case MTYPE_I8:
+    return "64-bit-signed-integer";
+  case MTYPE_I16:
+    return "128-bit-signed-integer";
+  case MTYPE_U1:
+    return "8-bit-unsigned-integer";
+  case MTYPE_U2:
+    return "16-bit-unsigned-integer";
+  case MTYPE_U4:
+    return "32-bit-unsigned-integer";
+  case MTYPE_U8:
+    return "64-bit-unsigned-integer";
+  case MTYPE_U16:
+    return "128-bit-unsigned-integer";
+  case MTYPE_F4:
+    return "32-bit-ieee-float";
+  case MTYPE_F8:
+    return "64-bit-ieee-float";
+  case MTYPE_F10:
+    return "80-bit-ieee-float";
+  case MTYPE_F16:
+    return "128-bit-ieee-float";
+  case MTYPE_STRING:
+    return "string";
+  case MTYPE_C4:
+    return "32-bit-complex";
+  case MTYPE_C8:
+    return "64-bit-complex";
+  case MTYPE_C10:
+    return "80-bit-ieee-complex";
+  case MTYPE_C16:
+    return "128-bit-ieee-complex";
+  case MTYPE_CQ:
+    return "128-bit-complex";
+  default:
+    return "unknown-type";
+  }
+}
 
 static void
 Print_type_attributes (FILE *f, TY_IDX ty)

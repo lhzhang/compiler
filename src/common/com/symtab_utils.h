@@ -348,6 +348,12 @@ const char *
 Export_Name (INT );
 
 const char *
+Export_String (INT e);
+
+const char *
+Mtype_String (INT mt);
+
+const char *
 Kind_Name (INT k);
 
 void

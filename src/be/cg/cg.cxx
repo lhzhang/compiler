@@ -1019,12 +1019,7 @@ CG_Generate_Code(
   }
 #endif
 
-#if 0 // need to find a trace code
-  if (Get_Trace (TP_MINIR, 0x1000000))
-#endif
-    CG_Dump_Minir(TP_MINIR, "Before register allocation, scheduling", TFile);
-
-
+if (!MiniR_Code) { 
   /* Global register allocation, Scheduling:
    *
    * The overall algorithm is as follows:
@@ -1340,6 +1335,8 @@ CG_Generate_Code(
 
   Reuse_Temp_TNs = orig_reuse_temp_tns;		/* restore */
 
+  } // MiniR_Code skip all this 
+
   if (region) {
     /*--------------------------------------------------------------------*/
     /* old region: rwn, rid_orig					  */
@@ -1405,7 +1402,17 @@ CG_Generate_Code(
     return rwn_new;
   } /* if (region */
 
-  else { /* PU */
+  else if (MiniR_Code) { /* Dump PU in MiniR */
+    if (PU_has_exc_scopes(Get_Current_PU())) {
+      EH_Write_Range_Table(rwn);
+    }    
+    MINIR_Dump_PU(Get_Current_PU_ST(), pu_dst, rwn);
+    CG_Region_Finalize( NULL, NULL, rwn, alias_mgr,
+		       FALSE /* generate_glue_code */ );
+    GRA_LIVE_Finish_PU();
+    PQSCG_term();
+  } 
+  else { /* Emit PU */
     /* Write the EH range table. */
     if (PU_has_exc_scopes(Get_Current_PU())) {
       EH_Write_Range_Table(rwn);

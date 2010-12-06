@@ -98,6 +98,13 @@ extern std::string EMT_Get_Qualified_Name (ST *st);
 
 /* Write a qualified name to a file. */
 extern void EMT_Write_Qualified_Name (FILE *f, ST *st);
+#if 1 // for MiniR
+extern void EMT_Write_Qualified_Tcon_Name (FILE *f, ST *st);
+extern void Assemble_Simulated_OP(OP *op, BB *bb);
+extern void EMT_set_Output_File (FILE *file);
+extern void emit_global_symbols ();
+extern void Process_Initos_And_Literals (SYMTAB_IDX stab);
+#endif 
 
 #if defined(BUILD_OS_DARWIN)
 /* Return log base two of an integer (used for .align) */
@@ -108,6 +115,7 @@ extern int is_debug_section(const char *section_name);
 #ifdef TARG_ST // [CL]
 void New_Debug_Line_Set_Label(INT code_address, BOOL last_line);
 #endif
+
 
 
 #endif /* cgemit_INCLUDED */

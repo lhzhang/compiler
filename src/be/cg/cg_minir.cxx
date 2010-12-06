@@ -48,7 +48,12 @@
  * ====================================================================
  */
 
-
+#include "errors.h"
+#include "config_list.h"
+#include "config_opt.h"
+#include "config_asm.h"
+#include "note.h"
+#include "freq.h"
 #include "defs.h"
 #include "config.h"
 #include "glob.h"
@@ -59,6 +64,11 @@
 #ifdef TARG_ST
 #include "cg_ssa.h"
 #endif
+
+#if 1 // for data section FAB
+#include "cgemit.h"
+#endif
+
 
 static const char *
 TN_Register_Name(TN *tn)
@@ -75,17 +85,17 @@ TN_Register_Class_Name(TN *tn)
 static const char *
 TN_Virtual_Name(TN *tn)
 {
-  static char name_buffer[2+10+1]; /* 10 is max decimal digits for INT32. */
-  sprintf(name_buffer, "TN%d", TN_number(tn));
+  static char name_buffer[1+10+1]; /* 10 is max decimal digits for INT32. */
+  // 'T' for a normal temporary, 'V' for an SSA variable
+  sprintf(name_buffer, "V%d", TN_number(tn));
   return name_buffer;
-  
 }
 
-static const char *
+const char *
 BB_Name(BB *bb)
 {
-  static char name_buffer[2+10+1]; /* 10 is max decimal digits for INT32. */
-  sprintf(name_buffer, "BB%d", BB_id(bb));
+  static char name_buffer[3+10+1]; /* 10 is max decimal digits for INT32. */
+  sprintf(name_buffer, "BB_%d", BB_id(bb));
   return name_buffer;
 }
 
@@ -103,6 +113,7 @@ CG_Dump_Minir_TN(TN *tn, TN *pinning, FILE *file)
       fprintf(file, "%s", TN_Register_Name(tn));
     } else {
       if (pinning != NULL) {
+        FmtAssert(false, ("%s:%d, Does not handle pinning for now!\n", __FILE__, __LINE__));
 	fprintf(file, "%s.%s", TN_Virtual_Name(tn), TN_Register_Name(pinning));
       } else {
 	fprintf(file, "%s.%s", TN_Virtual_Name(tn), TN_Register_Class_Name(tn));
@@ -110,33 +121,34 @@ CG_Dump_Minir_TN(TN *tn, TN *pinning, FILE *file)
     }
   } else if (TN_is_constant(tn)){
     if ( TN_has_value(tn)) {
-      fprintf(file, "'" PRId64 "'", TN_value(tn));
+      fprintf(file, "'%d'", TN_value(tn));
     }
     else if (TN_is_enum(tn)) {
-      fprintf(file, "%s", ISA_ECV_Name(TN_enum(tn)));
+      //fprintf(file, "%s", ISA_ECV_Name(TN_enum(tn)));
+      FmtAssert(false, ("No enums should be printed by this function"));
     }
     else if ( TN_is_label(tn) ) {
       const char *name = LABEL_name(TN_label(tn));
       INT64 offset = TN_offset(tn);
       if (offset == 0) {
-	fprintf(file, "'(%s)'", name);
+	fprintf(file, "'%s'", name);
       } else {
 	if (offset < 0) {
-	  fprintf(file, "'(%s" PRId64 ")'", name, offset);
+	  fprintf(file, "['%s','" PRId64 "']", name, offset);
 	} else {
 	  fprintf(file, "'(%s+" PRId64 ")'", name, offset);
 	}
       }
     } 
     else if ( TN_is_tag(tn) ) {
-      fprintf(file, "'(%s)'", LABEL_name(TN_label(tn)));
+      fprintf(file, "'%s'", LABEL_name(TN_label(tn)));
     }
     else if ( TN_is_symbol(tn) ) {
       ST *var = TN_var(tn);
       
-      fprintf(file, "'(");
+      fprintf(file, "[");
 #ifdef TARG_ST // relocation not available in targinfo path64 and available in MDS
-      if (TN_relocs(tn) != TN_RELOC_NONE && 
+      if (TN_relocs(tn) != ISA_RELOC_UNDEFINED && 
 	  *TN_RELOCS_Name(TN_relocs(tn)) != '\0') {
 	fprintf(file, "%s", TN_RELOCS_Name(TN_relocs(tn)));
 	if (TN_Reloc_has_parenthesis(TN_relocs(tn))) {
@@ -146,29 +158,29 @@ CG_Dump_Minir_TN(TN *tn, TN *pinning, FILE *file)
 #endif
 
       if (ST_class(var) == CLASS_CONST) {
-      	fprintf(file, ".L_UNNAMED_CONST_%d", ST_tcon(var));
+	fprintf(file, TCON_Label_Format, ST_IDX_index(ST_st_idx(var)));
       } else {
 	if (TN_offset(tn) == 0) {
 	  fprintf(file,"%s", ST_name(var));
 	} else {
 	  if (TN_offset(tn) < 0) {
-	    fprintf(file,"%s" PRId64, ST_name(var), TN_offset(tn));
+	    fprintf(file,"['%s'," PRId64 "']", ST_name(var), TN_offset(tn));
 	  } else {
-	    fprintf(file,"%s+" PRId64, ST_name(var), TN_offset(tn));
+	    fprintf(file,"['%s'+'" PRId64 "']", ST_name(var), TN_offset(tn));
 	  }
 	}
       }
 #ifdef TARG_ST // relocation not available in targinfo path64 and available in MDS
-      if (TN_relocs(tn) != TN_RELOC_NONE && 
+      if (TN_relocs(tn) != ISA_RELOC_UNDEFINED && 
 	  *TN_RELOCS_Name(TN_relocs(tn)) != '\0' &&
 	  TN_Reloc_has_parenthesis(TN_relocs(tn))) {
 	fprintf(file, ")");
       }
 #endif
-      fprintf(file, ")'");
+      fprintf(file, "]");
     }
     else {
-      FmtAssert(FALSE, ("Precondition on tn failed"));
+      FmtAssert(FALSE, ("Precondition  on tn failed"));
     }
   }
 }
@@ -178,10 +190,27 @@ CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, FILE *file)
 {
   const char *sep = "";
   fprintf(file, "%s { ", pfx);
+#ifdef TARG_ST
+  fprintf(stderr, "op: %s / %s\n", TOP_ShortName(OP_code(op)), TOP_Name(OP_code(op)));
+#else
   fprintf(file, "op: %s", TOP_Name(OP_code(op)));
+#endif
+  if (OP_simulated(op)) fprintf(file,"(simulated)"); // Assemble_Simulated_OP(op, bb)
+
+  FmtAssert(OP_code(op) != TOP_intrncall, ("see CGEMIT_Print_Intrinsic_OP if required"));
+
+  // Append enums (modifiers) separated by dots `.'
+  if (OP_opnds(op) > 0) {
+    for (int i = 0; i < OP_opnds(op); i++) {
+      TN *tn = OP_opnd(op,i);
+      if (TN_is_enum(tn)) {
+        fprintf(file, ".%s", ISA_ECV_Name(TN_enum(tn)));
+      }
+    }
+  }
   sep = ", ";
   if (OP_results(op) > 0) {
-    fprintf(file, "%sdefs: [ ", sep);
+    fprintf(file, "%sdefs: [", sep);
     sep = "";
     for (int i = 0; i < OP_results(op); i++) {
       TN *tn = OP_result(op,i);
@@ -198,11 +227,12 @@ CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, FILE *file)
     sep = ", ";
   }
   if (OP_opnds(op) > 0) {
-    fprintf(file, "%suses: [ ", sep);
+    fprintf(file, "%suses: [", sep);
     sep = "";
     for (int i = 0; i < OP_opnds(op); i++) {
       TN *tn = OP_opnd(op,i);
       TN *pinning = NULL;
+      if (TN_is_enum(tn)) continue;
 #ifdef TARG_ST // no SSA in CGIR-path64
       if (OP_Has_ssa_pinning(op))
  	pinning = OP_Get_opnd_pinning(op, i);
@@ -228,7 +258,7 @@ CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, FILE *file)
       if (single_target) {
 	fprintf(file, "%starget: ", sep);
       } else {
-	fprintf(file, "%stargets: [ ", sep);
+	fprintf(file, "%stargets: [", sep);
       }
       sep = "";
       FOR_ALL_BB_SUCCS (bb, bl) {
@@ -255,7 +285,7 @@ CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, FILE *file)
       FOR_ALL_REGISTER_SET_members(clobber_set, reg) {
 	TN *tn = Build_Dedicated_TN(rc, reg, 0);
 	if (num_clobbered++ == 0) {
-	  fprintf(file, "%simplicit_defs: [ ", sep);
+	  fprintf(file, "%simplicit_defs: [", sep);
 	  sep = "";
 	}
 	fprintf(file, "%s", sep);
@@ -275,27 +305,55 @@ CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, FILE *file)
 static void
 CG_Dump_Minir_OPs(BB *bb, OP *op, const char *pfx, FILE *file)
 {
-  for ( ; op != NULL; op = OP_next(op))
+  for ( ; op != NULL; op = OP_next(op)) {
+#if 0
+    if (OP_simulated(op))
+      Assemble_Simulated_OP(op, bb);
+#endif
     CG_Dump_Minir_OP(bb, op, pfx, file);
+  }
 }
 
-static void
+void
 CG_Dump_Minir_BB(BB *bb, const char *pfx, FILE *file)
 {
-  fprintf(file, "%slabel: %s\n", pfx, BB_Name(bb));
-  if (BB_has_label(bb)) {
-    const char *sep = "";
+  // Dump labels
+  fprintf(file, "label: %s\n", BB_Name(bb));
+  if (BB_has_label(bb))
+    {
+    const char *sep = ""; 
     ANNOTATION *ant;
-    fprintf(file, "%sannotations: { labels: [ ", pfx);
+    fprintf(file, "%slabels: [", pfx);
     for (ant = ANNOT_First(BB_annotations(bb), ANNOT_LABEL);
 	 ant != NULL;
 	 ant = ANNOT_Next(ant, ANNOT_LABEL)) {
       fprintf (file,"%s'%s'", sep, LABEL_name(ANNOT_label(ant)));
       sep = ", ";
     }
-    fprintf(file, "] }\n");
+    fprintf(file, "]\n");
   }
-  if (BB_first_op(bb)) {
+
+  // Dump loop info
+  if (BB_loop_head_bb(bb)) {
+    //       Emit_Loop_Note(bb, file);
+  }
+
+  // dump frequency & successor BBs probabilities
+  fprintf(file, "%sfrequency: %g\n", pfx, BB_freq(bb));
+  if (!BB_exit(bb)) { 
+    const char *sep = "";
+    BBLIST *item;
+    fprintf(file, "%sprobabilities: { ", pfx);
+    FOR_ALL_BB_SUCCS(bb, item) {
+      BB *bb_succ = BBLIST_item(item);
+      fprintf(file, "%s%s:%g", sep, BB_Name(bb_succ), BBLIST_prob(item));
+      sep = ", ";
+    }
+    fprintf(file, " }\n");
+  }
+
+  // Dump operations
+  if (BB_first_op(bb)) { 
     char ops_pfx[strlen(pfx) + 4 + 1];
     sprintf(ops_pfx, "%s  - ", pfx);
     fprintf(file, "%sops:\n", pfx);
@@ -304,6 +362,7 @@ CG_Dump_Minir_BB(BB *bb, const char *pfx, FILE *file)
     fprintf(file, "%sops: [ { op: NOP } ]\n", pfx);
   }
 }
+
 
 void
 CG_Dump_Minir(INT32 pass_num, const char *pass_string, FILE *file)
@@ -314,18 +373,16 @@ CG_Dump_Minir(INT32 pass_num, const char *pass_string, FILE *file)
   const char *bb_pfx;
   static int function_num;
 
-  FmtAssert(pass_string != NULL, ("Precondition on pass_string failed"));
-  FmtAssert(file != NULL, ("Precondition on file failed"));
-  FmtAssert(REGION_First_BB != NULL, ("Precondition on function failed"));
-  FmtAssert(Cur_PU_Name != NULL, ("Precondition on function failed"));
-
   if (function_num++ == 0) {
     fprintf(file, "functions:\n");
   }
-  fprintf(file, "  -\n");
+
+  // Name of the PU
+  fprintf(file, "  - label: %s\n", Cur_PU_Name);
   pfx = "    ";
-  fprintf(file, "%slabel: %s\n", pfx, Cur_PU_Name);
-  fprintf(file, "%sentries: [ ", pfx);
+  
+  // List of entry nodes
+  fprintf(file, "%sentries: [", pfx);
   sep = "";
   for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
     if (BB_entry(bb)) {
@@ -334,7 +391,9 @@ CG_Dump_Minir(INT32 pass_num, const char *pass_string, FILE *file)
     }
   }
   fprintf(file, "]\n");
-  fprintf(file, "%sexit: [ ", pfx);
+
+  // List of exit nodes
+  fprintf(file, "%sexits: [", pfx);
   sep = "";
   for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
     if (BB_exit(bb)) {
@@ -344,11 +403,11 @@ CG_Dump_Minir(INT32 pass_num, const char *pass_string, FILE *file)
   }
   fprintf(file, "]\n");
 
+  // Emit Basic blocks
   fprintf(file, "%sbbs:\n", pfx);
-
   bb_pfx = "        ";
   for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
-    fprintf(file, "%s  -\n", pfx);
+    fprintf(file, "%s  - ", pfx);
     CG_Dump_Minir_BB(bb, bb_pfx, file);
   }
 }
