@@ -1695,47 +1695,46 @@ Mtype_String (INT mt)
 {
   switch (mt) {
   case MTYPE_B:
-    return "boolean";
+    return "b";
   case MTYPE_I1:
-    return "8-bit-signed-integer";
+    return "s8";
   case MTYPE_I2:
-    return "16-bit-signed-integer";
+    return "s16";
   case MTYPE_I4:
-    return "32-bit-signed-integer";
+    return "s32";
   case MTYPE_I8:
-    return "64-bit-signed-integer";
+    return "s64";
   case MTYPE_I16:
-    return "128-bit-signed-integer";
+    return "s128";
   case MTYPE_U1:
-    return "8-bit-unsigned-integer";
+    return "u8";
   case MTYPE_U2:
-    return "16-bit-unsigned-integer";
+    return "u16";
   case MTYPE_U4:
-    return "32-bit-unsigned-integer";
+    return "u32";
   case MTYPE_U8:
-    return "64-bit-unsigned-integer";
+    return "u64";
   case MTYPE_U16:
-    return "128-bit-unsigned-integer";
+    return "u128";
   case MTYPE_F4:
-    return "32-bit-ieee-float";
+    return "f32";
   case MTYPE_F8:
-    return "64-bit-ieee-float";
+    return "f64";
   case MTYPE_F10:
-    return "80-bit-ieee-float";
+    return "f80";
   case MTYPE_F16:
-    return "128-bit-ieee-float";
+    return "f128";
   case MTYPE_STRING:
-    return "string";
+    return "ascii";
   case MTYPE_C4:
-    return "32-bit-complex";
+    return "c32";
   case MTYPE_C8:
-    return "64-bit-complex";
+    return "c64";
   case MTYPE_C10:
-    return "80-bit-ieee-complex";
+    return "c80";
   case MTYPE_C16:
-    return "128-bit-ieee-complex";
   case MTYPE_CQ:
-    return "128-bit-complex";
+    return "c128";
   default:
     return "unknown-type";
   }
