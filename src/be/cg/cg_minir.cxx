@@ -36,13 +36,10 @@
  *
  * Interface:
  *
- * void CG_Dump_Minir(INT32 pass_num, const char *pass_string, FILE *file)
+ * void CG_Dump_Minir(INT32 pass_num, const char *pass_string, std::ostringstream *oss)
  *
  *   Dumps the current region into a minir representation, appending to
- *   file.
- *   The first time this function is called the functions map entry is
- *   created in the output such that a whole module will be dumped
- *   in the same file as a list of functions in the MinIR.
+ *   oss.
  *
  * ====================================================================
  * ====================================================================
@@ -65,15 +62,19 @@
 #include "cg_ssa.h"
 #endif
 
-#if 1 // for data section FAB
 #include "cgemit.h"
-#endif
+#include <sstream>
+#include <iostream>
 
 
-static const char *
+static const char*
 TN_Register_Name(TN *tn)
 {
-  return REGISTER_name(TN_register_class(tn), TN_register(tn));
+  static std::string res;
+  res=REGISTER_name(TN_register_class(tn), TN_register(tn));
+  FmtAssert(res[0]=='%', ("Register name not starting with %"));
+  res[0]='$';
+  return res.c_str();
 }
 
 static const char *
@@ -85,43 +86,42 @@ TN_Register_Class_Name(TN *tn)
 static const char *
 TN_Virtual_Name(TN *tn)
 {
-  static char name_buffer[1+10+1]; /* 10 is max decimal digits for INT32. */
-  // 'T' for a normal temporary, 'V' for an SSA variable
-  sprintf(name_buffer, "V%d", TN_number(tn));
-  return name_buffer;
+  std::ostringstream name_buffer;
+  name_buffer << "V" << TN_number(tn);
+  return name_buffer.str().c_str();
 }
 
 const char *
 BB_Name(BB *bb)
 {
-  static char name_buffer[3+10+1]; /* 10 is max decimal digits for INT32. */
-  sprintf(name_buffer, "BB_%d", BB_id(bb));
-  return name_buffer;
+  std::ostringstream name_buffer;
+  name_buffer << "BB" << BB_id(bb);
+  return name_buffer.str().c_str();
 }
 
 
 static void 
-CG_Dump_Minir_TN(TN *tn, TN *pinning, FILE *file)
+CG_Dump_Minir_TN(TN *tn, TN *pinning, std::ostringstream *oss)
 {
   FmtAssert(TN_is_register(tn) || TN_is_constant(tn), ("Precondition on tn failed"));
   
   if (TN_is_register(tn)){
     if (TN_is_dedicated(tn)) {
-      fprintf(file, "%s", TN_Register_Name(tn));
+      *oss << TN_Register_Name(tn);
     } else
     if (TN_register(tn) != REGISTER_UNDEFINED) {
-      fprintf(file, "%s", TN_Register_Name(tn));
+      *oss << TN_Register_Name(tn);
     } else {
       if (pinning != NULL) {
         FmtAssert(false, ("%s:%d, Does not handle pinning for now!\n", __FILE__, __LINE__));
-	fprintf(file, "%s.%s", TN_Virtual_Name(tn), TN_Register_Name(pinning));
+	*oss << TN_Virtual_Name(tn) << "." << TN_Register_Name(pinning);
       } else {
-	fprintf(file, "%s.%s", TN_Virtual_Name(tn), TN_Register_Class_Name(tn));
+	*oss << TN_Virtual_Name(tn) << "." << TN_Register_Class_Name(tn);
       }
     }
   } else if (TN_is_constant(tn)){
     if ( TN_has_value(tn)) {
-      fprintf(file, "'%d'", TN_value(tn));
+      *oss << "'" << TN_value(tn) << "'";
     }
     else if (TN_is_enum(tn)) {
       //fprintf(file, "%s", ISA_ECV_Name(TN_enum(tn)));
@@ -130,72 +130,64 @@ CG_Dump_Minir_TN(TN *tn, TN *pinning, FILE *file)
     else if ( TN_is_label(tn) ) {
       const char *name = LABEL_name(TN_label(tn));
       INT64 offset = TN_offset(tn);
-      if (offset == 0) {
-	fprintf(file, "'%s'", name);
-      } else {
-	if (offset < 0) {
-	  fprintf(file, "['%s','" PRId64 "']", name, offset);
-	} else {
-	  fprintf(file, "'(%s+" PRId64 ")'", name, offset);
-	}
+      if (offset == 0) 
+	*oss << "'" << name << "'";
+      else {
+	if (offset < 0) 
+	  *oss << "['" << name << ", " << offset << "']";
+	else 
+	  *oss << "'(" << name << "+" << offset << ")'";
       }
     } 
-    else if ( TN_is_tag(tn) ) {
-      fprintf(file, "'%s'", LABEL_name(TN_label(tn)));
-    }
+    else if ( TN_is_tag(tn) ) 
+      *oss << "'" << LABEL_name(TN_label(tn)) << "'";
     else if ( TN_is_symbol(tn) ) {
       ST *var = TN_var(tn);
       
-      fprintf(file, "[");
+      *oss << "[";
 #ifdef TARG_ST // relocation not available in targinfo path64 and available in MDS
       if (TN_relocs(tn) != ISA_RELOC_UNDEFINED && 
 	  *TN_RELOCS_Name(TN_relocs(tn)) != '\0') {
-	fprintf(file, "%s", TN_RELOCS_Name(TN_relocs(tn)));
-	if (TN_Reloc_has_parenthesis(TN_relocs(tn))) {
-	  fprintf(file, "(");
-	}
+	*oss << TN_RELOCS_Name(TN_relocs(tn));
+	if (TN_Reloc_has_parenthesis(TN_relocs(tn))) 
+	  *oss << "(";
       }
 #endif
 
-      if (ST_class(var) == CLASS_CONST) {
-	fprintf(file, TCON_Label_Format, ST_IDX_index(ST_st_idx(var)));
-      } else {
-	if (TN_offset(tn) == 0) {
-	  fprintf(file,"%s", ST_name(var));
-	} else {
-	  if (TN_offset(tn) < 0) {
-	    fprintf(file,"['%s'," PRId64 "']", ST_name(var), TN_offset(tn));
-	  } else {
-	    fprintf(file,"['%s'+'" PRId64 "']", ST_name(var), TN_offset(tn));
-	  }
+      if (ST_class(var) == CLASS_CONST) 
+	*oss << ".LC" << ST_IDX_index(ST_st_idx(var));
+      else {
+	if (TN_offset(tn) == 0) 
+	  *oss << ST_name(var);
+	else {
+	  if (TN_offset(tn) < 0) 
+	    *oss << "['" << ST_name(var) << "', " << TN_offset(tn) << "']";
+	  else 
+	    *oss << "['" << ST_name(var) << "'+'" << TN_offset(tn) << "']";
 	}
       }
 #ifdef TARG_ST // relocation not available in targinfo path64 and available in MDS
       if (TN_relocs(tn) != ISA_RELOC_UNDEFINED && 
 	  *TN_RELOCS_Name(TN_relocs(tn)) != '\0' &&
 	  TN_Reloc_has_parenthesis(TN_relocs(tn))) {
-	fprintf(file, ")");
+	*oss << ")";
       }
 #endif
-      fprintf(file, "]");
+      *oss << "]";
     }
-    else {
+    else 
       FmtAssert(FALSE, ("Precondition  on tn failed"));
-    }
   }
 }
 
 static void
-CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, FILE *file)
+CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, std::ostringstream *oss)
 {
   const char *sep = "";
-  fprintf(file, "%s { ", pfx);
-#ifdef TARG_ST
-  fprintf(stderr, "op: %s / %s\n", TOP_ShortName(OP_code(op)), TOP_Name(OP_code(op)));
-#else
-  fprintf(file, "op: %s", TOP_Name(OP_code(op)));
-#endif
-  if (OP_simulated(op)) fprintf(file,"(simulated)"); // Assemble_Simulated_OP(op, bb)
+  *oss << pfx << " {";
+  *oss << "op: " << TOP_Name(OP_code(op));
+  if (OP_simulated(op)) 
+    *oss << "(simulated)"; // Assemble_Simulated_OP(op, bb)
 
   FmtAssert(OP_code(op) != TOP_intrncall, ("see CGEMIT_Print_Intrinsic_OP if required"));
 
@@ -203,14 +195,13 @@ CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, FILE *file)
   if (OP_opnds(op) > 0) {
     for (int i = 0; i < OP_opnds(op); i++) {
       TN *tn = OP_opnd(op,i);
-      if (TN_is_enum(tn)) {
-        fprintf(file, ".%s", ISA_ECV_Name(TN_enum(tn)));
-      }
+      if (TN_is_enum(tn)) 
+        *oss << "." << ISA_ECV_Name(TN_enum(tn));
     }
   }
   sep = ", ";
   if (OP_results(op) > 0) {
-    fprintf(file, "%sdefs: [", sep);
+    *oss << sep << "defs: [";
     sep = "";
     for (int i = 0; i < OP_results(op); i++) {
       TN *tn = OP_result(op,i);
@@ -219,15 +210,15 @@ CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, FILE *file)
       if (OP_Has_ssa_pinning(op))
  	pinning = OP_Get_result_pinning(op, i);
 #endif
-      fprintf(file, "%s", sep);
-      CG_Dump_Minir_TN(tn, pinning, file);
+      *oss << sep;
+      CG_Dump_Minir_TN(tn, pinning, oss);
       sep =", ";
     }
-    fprintf(file, "]");
+    *oss << "]";
     sep = ", ";
   }
   if (OP_opnds(op) > 0) {
-    fprintf(file, "%suses: [", sep);
+    *oss << sep << "uses: [";
     sep = "";
     for (int i = 0; i < OP_opnds(op); i++) {
       TN *tn = OP_opnd(op,i);
@@ -237,17 +228,17 @@ CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, FILE *file)
       if (OP_Has_ssa_pinning(op))
  	pinning = OP_Get_opnd_pinning(op, i);
 #endif
-      fprintf(file, "%s", sep);
-      CG_Dump_Minir_TN(tn, pinning, file);
+      *oss << sep;
+      CG_Dump_Minir_TN(tn, pinning, oss);
 #ifdef TARG_ST // no SSA in CGIR-path64
       if (OP_phi(op)) {
  	BB *phi_opnd_bb = Get_PHI_Predecessor (op, i);
-	fprintf(file, "<%s>", BB_Name(phi_opnd_bb));
+	*oss << "<" << BB_Name(phi_opnd_bb) << ">";
       }
 #endif
       sep =", ";
     }
-    fprintf(file, "]");
+    *oss << "]";
   }
   if (op == BB_branch_op(bb)) {
     INT nsuccs = BB_succs(bb) ? BBlist_Len(BB_succs(bb)): 0;
@@ -255,24 +246,18 @@ CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, FILE *file)
       BBLIST *bl;
       BB *bb_fallthru = BB_Fall_Thru_Successor(bb);
       BOOL single_target = nsuccs == 1 || (bb_fallthru != NULL && nsuccs == 2);
-      if (single_target) {
-	fprintf(file, "%starget: ", sep);
-      } else {
-	fprintf(file, "%stargets: [", sep);
-      }
+      *oss << sep << (single_target ? "target: " : "targets: [");
       sep = "";
       FOR_ALL_BB_SUCCS (bb, bl) {
 	if (BBLIST_item(bl) != bb_fallthru) {
-	  fprintf (file, "%s%s", sep, BB_Name(BBLIST_item(bl)));
+	  *oss << sep << BB_Name(BBLIST_item(bl));
 	  sep = ", ";
 	}
       }
-      if (!single_target) {
-	fprintf(file, "]");
-      }
-      if (bb_fallthru != NULL) {
-	fprintf(file, ", fallthru: %s", BB_Name(bb_fallthru));
-      }
+      if (!single_target) 
+	*oss << "]";
+      if (bb_fallthru != NULL) 
+	*oss << ", fallthru: " << BB_Name(bb_fallthru);
       sep = ", ";
     }
   }
@@ -285,52 +270,52 @@ CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, FILE *file)
       FOR_ALL_REGISTER_SET_members(clobber_set, reg) {
 	TN *tn = Build_Dedicated_TN(rc, reg, 0);
 	if (num_clobbered++ == 0) {
-	  fprintf(file, "%simplicit_defs: [", sep);
+	  *oss << sep << "implicit_defs: [";
 	  sep = "";
 	}
-	fprintf(file, "%s", sep);
-	CG_Dump_Minir_TN(tn, NULL, file);
+	*oss << sep;
+	CG_Dump_Minir_TN(tn, NULL, oss);
 	sep = ", ";
       }
     }
     if (num_clobbered > 0) {
-      fprintf(file, "]");
+      *oss << "]";
       sep = ", ";
     }
   }
 
-  fprintf(file, "}\n");
+  *oss << "}\n";
 }
 
 static void
-CG_Dump_Minir_OPs(BB *bb, OP *op, const char *pfx, FILE *file)
+CG_Dump_Minir_OPs(BB *bb, OP *op, const char *pfx, std::ostringstream *oss)
 {
   for ( ; op != NULL; op = OP_next(op)) {
 #if 0
     if (OP_simulated(op))
       Assemble_Simulated_OP(op, bb);
 #endif
-    CG_Dump_Minir_OP(bb, op, pfx, file);
+    CG_Dump_Minir_OP(bb, op, pfx, oss);
   }
 }
 
 void
-CG_Dump_Minir_BB(BB *bb, const char *pfx, FILE *file)
+CG_Dump_Minir_BB(BB *bb, const char *pfx, std::ostringstream *oss)
 {
   // Dump labels
-  fprintf(file, "label: %s\n", BB_Name(bb));
+  *oss << "label: " << BB_Name(bb) << "\n";
   if (BB_has_label(bb))
     {
     const char *sep = ""; 
     ANNOTATION *ant;
-    fprintf(file, "%slabels: [", pfx);
+    *oss << pfx << "labels: [";
     for (ant = ANNOT_First(BB_annotations(bb), ANNOT_LABEL);
 	 ant != NULL;
 	 ant = ANNOT_Next(ant, ANNOT_LABEL)) {
-      fprintf (file,"%s'%s'", sep, LABEL_name(ANNOT_label(ant)));
+      *oss << sep << "'" << LABEL_name(ANNOT_label(ant)) << "'";
       sep = ", ";
     }
-    fprintf(file, "]\n");
+    *oss << "]\n";
   }
 
   // Dump loop info
@@ -339,76 +324,71 @@ CG_Dump_Minir_BB(BB *bb, const char *pfx, FILE *file)
   }
 
   // dump frequency & successor BBs probabilities
-  fprintf(file, "%sfrequency: %g\n", pfx, BB_freq(bb));
+  *oss << pfx << "frequency: " << BB_freq(bb) << "\n";
   if (!BB_exit(bb)) { 
     const char *sep = "";
     BBLIST *item;
-    fprintf(file, "%sprobabilities: { ", pfx);
+    *oss << pfx << "probabilities: { ";
     FOR_ALL_BB_SUCCS(bb, item) {
       BB *bb_succ = BBLIST_item(item);
-      fprintf(file, "%s%s:%g", sep, BB_Name(bb_succ), BBLIST_prob(item));
+      *oss << sep << BB_Name(bb_succ) << ":" << BBLIST_prob(item);
       sep = ", ";
     }
-    fprintf(file, " }\n");
+    *oss << " }\n";
   }
 
   // Dump operations
   if (BB_first_op(bb)) { 
     char ops_pfx[strlen(pfx) + 4 + 1];
     sprintf(ops_pfx, "%s  - ", pfx);
-    fprintf(file, "%sops:\n", pfx);
-    CG_Dump_Minir_OPs(bb, BB_first_op(bb), ops_pfx, file);
+    *oss << pfx << "ops:\n";
+    CG_Dump_Minir_OPs(bb, BB_first_op(bb), ops_pfx, oss);
   } else {
-    fprintf(file, "%sops: [ { op: NOP } ]\n", pfx);
+    *oss << pfx << "ops: [ { op: NOP } ]\n";
   }
 }
 
 
 void
-CG_Dump_Minir(INT32 pass_num, const char *pass_string, FILE *file)
+CG_Dump_Minir(INT32 pass_num, const char *pass_string, std::ostringstream *oss)
 {
   BB *bb;
   const char *sep;
   const char *pfx;
   const char *bb_pfx;
-  static int function_num;
-
-  if (function_num++ == 0) {
-    fprintf(file, "functions:\n");
-  }
-
+  
   // Name of the PU
-  fprintf(file, "  - label: %s\n", Cur_PU_Name);
+  *oss << "  - label: " << Cur_PU_Name << "\n";
   pfx = "    ";
   
   // List of entry nodes
-  fprintf(file, "%sentries: [", pfx);
+  *oss << pfx << "entries: [";
   sep = "";
   for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
     if (BB_entry(bb)) {
-      fprintf(file, "%s%s", sep, BB_Name(bb));
+      *oss << sep << BB_Name(bb);
       sep = ", ";
     }
   }
-  fprintf(file, "]\n");
+  *oss << "]\n";
 
   // List of exit nodes
-  fprintf(file, "%sexits: [", pfx);
+  *oss << pfx << "%sexits: [";
   sep = "";
   for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
     if (BB_exit(bb)) {
-      fprintf(file, "%s%s", sep, BB_Name(bb));
+      *oss << sep << BB_Name(bb);
       sep = ", ";
     }
   }
-  fprintf(file, "]\n");
+  *oss << "]\n";
 
   // Emit Basic blocks
-  fprintf(file, "%sbbs:\n", pfx);
+  *oss << pfx << "bbs:\n";
   bb_pfx = "        ";
   for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
-    fprintf(file, "%s  - ", pfx);
-    CG_Dump_Minir_BB(bb, bb_pfx, file);
+    *oss << pfx << "  - ";
+    CG_Dump_Minir_BB(bb, bb_pfx, oss);
   }
 }
 

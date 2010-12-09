@@ -2552,7 +2552,7 @@ Prepare_Source (void)
 	    ErrMsg ( EC_Asm_Open, MiniR_File_Name, errno );
 	    Terminate (1);
 	}
-    }
+    }      
 
     /* Prepare relocatable object file name: */
     if ( Obj_File_Name == NULL ) {
@@ -3109,7 +3109,8 @@ CG_Fini (void)
 
     Set_Error_Phase ( "Codegen Emit" );
     /* Finish off the relocatable object file: */
-    if (!MiniR_Code) EMT_End_File();
+    EMT_End_File();
+
     MEM_POOL_Delete (&MEM_local_region_pool);
     MEM_POOL_Delete (&MEM_local_region_nz_pool);
 

@@ -3190,7 +3190,7 @@ Targ_Print ( const char *fmt, TCON c )
 	    sprintf(r+spos,"...");
 	 }
       } else {
-	 sprintf(r, "(%d bytes) \"", slen);
+	sprintf(r, "(%d bytes) \"", slen);
 	 char *t = r + strlen (r);
 	 // [JV] In Print_TN (tnutil.cxx), the buffer size is 1024, so replace 1000 by 500 
 	 // due to some additional printed information.

@@ -47,11 +47,11 @@
 #ifndef cg_minir_INCLUDED
 #define cg_minir_INCLUDED
 
-extern void CG_Dump_Minir(INT32 pass_num, const char *pass_string, FILE *file);
+extern void CG_Dump_Minir(INT32 pass_num, const char *pass_string, std::ostringstream *oss);
 extern void MINIR_Dump_PU( ST *pu, DST_IDX pu_dst, WN *rwn );
 extern const char * BB_Name(BB *bb);
-extern void CG_Dump_Minir_BB(BB *bb, const char *pfx, FILE *file);
-
+extern void CG_Dump_Minir_BB(BB *bb, const char *pfx, std::ostringstream *oss);
+extern const char *BB_Name(BB *bb);
 #endif /* cg_minir_INCLUDED */
 
 
