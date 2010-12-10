@@ -11396,6 +11396,24 @@ Write_TCON (
   return scn_ofst;
 }
 
+static INT
+AsmType_Mtype (const char *at)
+{
+  switch (at[1]) {
+  case 'w': // ".word"
+    return MTYPE_I4;
+  case 'h': // ".hword"
+    return MTYPE_I2;
+  case 'd': // ".dword":
+    return MTYPE_U4;
+  case 'q': // ".quad":
+    return MTYPE_I8;
+  default:
+    objects_MINIR << "unknown type: " << at << "\n";
+    return MTYPE_UNKNOWN;
+  }
+}
+
 /* ====================================================================
  *
  * Write_Symbol
@@ -11506,24 +11524,33 @@ Write_Symbol (
     const char *fptr = AS_FPTR;
     if (Assembly || MiniR_Code) {
 #ifdef TARG_MIPS
-	if (CG_emit_non_gas_syntax)
-	  fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", Use_32_Bit_Pointers ? ".word" : ".dword");
-	else
+      if (CG_emit_non_gas_syntax)  
+	if (MiniR_Code)
+	  objects_MINIR << "      - " << Mtype_String(AsmType_Mtype(Use_32_Bit_Pointers ? ".word" : ".dword")) << ": [";
+	else 
+	  fprintf(Asm_File, "\t%s\t", Use_32_Bit_Pointers ? ".word" : ".dword");
+      else
 #elsif TARG_ST
       /* (cbr) support for half address relocation */
-      if (halfword)
-        fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t",  AS_HALF);
-      else
-#endif
-	if (MiniR_Code) 
-	  objects_MINIR << "      - ptr: [";
-	else if (Assembly)
-	  fprintf (Asm_File, "\t%s\t", 
-		   (scn_ofst % address_size) == 0 ? 
-		   AS_ADDRESS : AS_ADDRESS_UNALIGNED);
-	if (ST_class(sym) == CLASS_CONST) {
+	if (halfword)
 	  if (MiniR_Code)
-	    objects_MINIR << EMT_Get_Qualified_Name(basesym) << ", '+" << base_ofst << "']\n";
+	    objects_MINIR << "      - " << Mtype_String(AsmType_Mtype(AS_HALF)) << ": [";
+	  else
+	    fprintf (Asm_File, "\t%s\t",  AS_HALF);
+	else
+#endif
+	  if (MiniR_Code) 
+	    objects_MINIR << "      - " << Mtype_String(AsmType_Mtype((scn_ofst % address_size) == 0 ? AS_ADDRESS : AS_ADDRESS_UNALIGNED)) << ": [";
+	  else 
+	    fprintf (Asm_File, "\t%s\t", 
+		     (scn_ofst % address_size) == 0 ? 
+		     AS_ADDRESS : AS_ADDRESS_UNALIGNED);
+      if (ST_class(sym) == CLASS_CONST) {
+	  if (MiniR_Code)
+	    if (base_ofst)
+	      objects_MINIR << EMT_Get_Qualified_Name(basesym) << ", '" << std::showpos << base_ofst << "']\n";
+	    else 
+	      objects_MINIR << EMT_Get_Qualified_Name(basesym) << "]\n";
 	  else {
 	    EMT_Write_Qualified_Name (Asm_File, basesym);
 	    fprintf (Asm_File, " %+" SCNd64 "\n", base_ofst);
@@ -11536,7 +11563,10 @@ Write_Symbol (
 	}
 	else {
 		if (MiniR_Code)
-		  objects_MINIR << EMT_Get_Qualified_Name(basesym) << ", '+" << sym_ofst << "']\n";
+		  if (sym_ofst)
+		    objects_MINIR << EMT_Get_Qualified_Name(basesym) << ", '" << std::showpos << sym_ofst << "']\n";
+		  else 
+		    objects_MINIR << EMT_Get_Qualified_Name(basesym) << "]\n";
 		else if (Assembly) {
 		  EMT_Write_Qualified_Name (Asm_File, sym);
 		  fprintf (Asm_File, " %+" SCNd64 "\n", sym_ofst);
