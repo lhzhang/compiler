@@ -771,118 +771,6 @@ Trace_Init_Loc ( INT scn_idx, Elf64_Xword scn_ofst, INT32 repeat)
 }
 
 
-#ifdef TARG_ST
-/* (cbr) DDTSst24451. add support for label diffs initializers */
-/* ====================================================================
- *    Write_Labdiff (lab1, lab2, scn_idx, scn_ofst, repeat, size)
- * ====================================================================
- */
-static Elf64_Word
-Write_Labdiff (
-  LABEL_IDX lab1,	/* left symbol */
-  LABEL_IDX lab2,       /* right symbol */
-  INT scn_idx,		/* Section to emit it in */
-  Elf64_Word scn_ofst,	/* Section offset to emit it at */
-  INT32	repeat,		/* Repeat count */
-  INT size		/* 2 or 4 bytes */
-)
-{
-  INT32 i;
-  ST *basesym1;
-  ST *basesym2;
-  INT64 base1_ofst = 0;
-  INT64 base2_ofst = 0;
-  pSCNINFO scn = em_scn[scn_idx].scninfo;
-  INT32 val;
-
-  if ( Trace_Init ) {
-    #pragma mips_frequency_hint NEVER
-    Trace_Init_Loc (scn_idx, scn_ofst, repeat);
-    fprintf ( TFile, "LABDIFF " );
-    fprintf ( TFile, "%s - %s\n", LABEL_name(lab1), LABEL_name(lab2));
-  }
-
-  /* symbols must have an address */
-  Is_True (lab1, ("cgemit: Labdiff lab1 is null"));
-  Is_True (lab2, ("cgemit: Labdiff lab2 is null"));
-
-  basesym1 = BB_cold(Get_Label_BB(lab1)) && !MiniR_Code ? cold_base : text_base;
-  basesym2 = BB_cold(Get_Label_BB(lab2)) && !MiniR_Code ? cold_base : text_base;
-  base1_ofst = Get_Label_Offset(lab1);
-  base2_ofst = Get_Label_Offset(lab2);
-
-  if (Use_Separate_PU_Section(current_pu,basesym2)) {
-	/* use PU text section rather than generic one */
-	basesym2 = PU_base;
-  }
-  Is_True (basesym1 == basesym2, ("cgemit: Labdiff bases not same"));
-  val = base1_ofst - base2_ofst;
-  if (val < 0) val = 0;
-  if (size == 2) {
-	if (val > INT16_MAX) {
-		DevWarn("symdiff value not 16-bits; will try recompiling with -TENV:long_eh_offsets");
-		Early_Terminate (RC_OVERFLOW_ERROR);
-	}
-	val = val << 16;	/* for Add_Bytes */
-  }
-
-  for ( i = 0; i < repeat; i++ ) {
-    if (Assembly || MiniR_Code) {
-      fprintf (MiniR_Code ? MiniR_file : Output_File, "\t%s\t", (size == 2 ? AS_HALF : AS_WORD));
-      fprintf((MiniR_Code ? MiniR_file : Output_File, "%s", LABEL_name(lab1));
-      fprintf ((MiniR_Code ? MiniR_file : Output_File, "-");
-      fprintf((MiniR_Code ? MiniR_file : Output_File, "%s", LABEL_name(lab2));
-      fprintf ((MiniR_Code ? MiniR_file : Output_File, "\n");
-    }
-    if (Object_Code) {
-      Em_Add_Bytes_To_Scn (scn, (char *) &val, size, 1);
-    }
-    scn_ofst += size;
-  }
-#ifdef TARG_ST
-  // [CL]
-  Set_LABEL_emitted(lab1);
-  Set_LABEL_emitted(lab2);
-#endif
-  return scn_ofst;
-}
-#endif
-
-#ifdef KEY
-#include <map>
-std::map<const ST*, const ST*> st_to_pic_st;
-// Emit PIC version of a symbol, here, a typeinfo symbol
-static Elf64_Word
-Emit_PIC_version (ST * st, Elf64_Word scn_ofst)
-{
-  if (st_to_pic_st.find (st) == st_to_pic_st.end())
-  {
-    ST * pic_st = New_ST (GLOBAL_SYMTAB);
-    STR_IDX name = Save_Str2 ("DW.ref.", ST_name (st));
-    ST_Init(pic_st, name, CLASS_VAR, SCLASS_DGLOBAL, EXPORT_HIDDEN, MTYPE_TO_TY_array[MTYPE_U8]);
-    Set_ST_is_weak_symbol (pic_st);
-    Set_ST_is_initialized (pic_st);
-    ST_ATTR_IDX st_attr_idx;
-    ST_ATTR&    st_attr = New_ST_ATTR (GLOBAL_SYMTAB, st_attr_idx);
-    ST_ATTR_Init (st_attr, ST_st_idx (pic_st), ST_ATTR_SECTION_NAME, Save_Str2 (".gnu.linkonce.d.", ST_name (pic_st)));
-                                                                                
-    INITV_IDX iv = New_INITV();
-    INITV_Init_Symoff (iv, st, 0, 1);
-    New_INITO (ST_st_idx (pic_st), iv);
-
-    Assign_ST_To_Named_Section (pic_st, ST_ATTR_section_name (st_attr));
-    st_to_pic_st [st] = pic_st;
-  }
-
-#ifdef TARG_ST
-  fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\tDW.ref.%s-.\n", AS_WORD, ST_name (st));
-#else
-  fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t.long\tDW.ref.%s-.\n", ST_name (st));
-#endif
-
-  return scn_ofst + 4;
-}
-#endif
 
 #ifdef KEY
 static Elf64_Xword
@@ -1350,7 +1238,7 @@ Process_Bss_Data (
 #endif
 
     Change_Section_Origin (base, ofst);
-    if (Assembly || Lai_Code || MiniR_Code) {
+    if (Assembly || Lai_Code) {
       size = TY_size(ST_type(sym));
 #ifdef TARG_ST
       // Save alignment before continuing
@@ -1417,14 +1305,12 @@ Process_Bss_Data (
       // are sorted so that largest size is last.
       if (size > 0) {
 #ifndef TARG_ST
-	fprintf(MiniR_Code ? Output_File : MiniR_File, "\t%s %d\n", AS_ALIGN, TY_align(ST_type(sym)));
+	fprintf(Output_File, "\t%s %d\n", AS_ALIGN, TY_align(ST_type(sym)));
 #endif
 	if (Assembly)
 	  ASM_DIR_SKIP(Asm_File, (INT32)size);
 	if (Lai_Code)
 	  fprintf(Lai_File, "\t%s %lld\n", AS_SPACE, size);
-	if (MiniR_Code)
-	  fprintf(MiniR_File, "\t%s %lld\n", AS_SPACE, size);
 	  /*      ASM_DIR_SKIP(Lai_File, size); */
       }
 #ifdef TARG_ST
@@ -1686,105 +1572,6 @@ Check_If_Should_Align_PU (
 }
 #endif
 
-/* ====================================================================
- *   Create_Cold_Text_Section
- *
- *    Scan the BBs in the region looking for cold BBs. If one is found,
- *    create the cold text section if it hasn't already been created.
- *    Also set the BB_cold BB flag accordingly.
- * ====================================================================
- */
-static void
-Create_Cold_Text_Section (void)
-{
-  BB *bb;
-
-  FmtAssert(text_base != NULL, ("emit: text_base is null"));
-  for (bb = REGION_First_BB; bb; bb = BB_next(bb)) {
-#ifdef TARG_ST
-    // [CG] hot/cold placement for .text section only
-    if (Is_Text_Section(text_base) &&
-#else 
-    if (
-#endif
-	EMIT_use_cold_section && !MiniR_Code && BB_Is_Cold(bb)) {
-      if (cold_base == NULL) {
-	ST *st = Copy_ST(text_base);
-	Set_ST_blk(st, Copy_BLK(ST_blk(text_base)));
-	Set_ST_name (st, Save_Str2(ELF_TEXT, ".cold"));
-	Set_STB_size (st, 0);
-	Set_STB_scninfo_idx(st, 0);
-	Set_STB_section_idx(st, STB_section_idx(text_base));
-	Init_Section (st);
-	cold_base = st;
-
-#ifdef TARG_ST
-	// [CL] don't forget to initialize cold_section!
-	cold_section = em_scn[STB_scninfo_idx(cold_base)].scninfo;
-#endif
-      }
-
-      /* Check the remaining BBs in the region to verify they are
-       * are cold. cgemit doesn't require this attribute, but currently
-       * this is how the cold region is generated, so it's helpful
-       * to verify it since someone forgetting to set the rid on a
-       * new BB will cause trouble.
-       */
-      do {
-	FmtAssert(BB_Is_Cold(bb),
-		  ("emit: hot BB:%d found in cold region", BB_id(bb)));
-	Set_BB_cold(bb);
-      } while (bb = BB_next(bb));
-
-      return;
-    }
-
-    Reset_BB_cold(bb);
-  }
-}
-
-/* ====================================================================
- *   Setup_Text_Section_For_BB
- *
- *   Set PU_base, PU_section and PC according to whether <bb> is
- *   in the hot or cold region.
- * ====================================================================
- */
-static void
-Setup_Text_Section_For_BB (
-  BB *bb
-)
-{
-  BOOL cold_bb = BB_cold(bb);
-  PU_base = cold_bb && !MiniR_Code ? cold_base : text_base;
-  if (cur_section != PU_base) {
-    if (Assembly) {
-      fprintf (Asm_File, "\n\t%s %s\n", AS_SECTION, ST_name(PU_base));
-#ifdef TARG_ST
-      // [CL] force alignment if we have just switched to cold
-      // section for the current PU (as alignment constraints in
-      // hb_hazards.cxx:Make_Bundles() are reset for each new
-      // PU, we must reset alignment here)
-      if ( (PU_base == cold_base) && (DEFAULT_FUNCTION_ALIGNMENT) ) {
-	fprintf(Asm_File, "\t%s %d\n", AS_ALIGN, DEFAULT_FUNCTION_ALIGNMENT);
-      }
-#endif
-    }
-    if(Lai_Code) {
-      fprintf (Lai_File, "\n\t%s %s\n", AS_SECTION, ST_name(PU_base));
-    }
-    if (cold_bb) {
-      PU_section = cold_section;
-      text_PC = PC;
-      PC = cold_PC;
-    } else {
-      PU_section = text_section;
-      cold_PC = PC;
-      PC = text_PC;
-    }
-    cur_section = PU_base;
-  }
-}
 
 static LABEL_IDX       prev_pu_last_label  = LABEL_IDX_ZERO;
 static Dwarf_Unsigned  prev_pu_base_elfsym = 0;
@@ -5677,391 +5464,6 @@ EMT_Emit_PU (
   return;
 }
 
-/* ====================================================================
- *    EMT_End_File ()
- * ====================================================================
- */
-void
-EMT_End_File( void )
-{
-  INT16 i;
-  ST *sym;
-
-  cur_section = NULL;
-  Init_ST_elf_index(GLOBAL_SYMTAB);
-
-  /* make sure all global symbols are initialized */
-  FOREACH_SYMBOL (GLOBAL_SYMTAB, sym, i) {
-    if (ST_class(sym) == CLASS_BLOCK && STB_section(sym)) {
-      if (Emit_Global_Data && SEC_is_merge(STB_section_idx(sym)) )
-	continue;	// merge sections go in each .o
-      Init_Section(sym);
-    }
-    // emit commons here so order is preserved for datapools
-    if (ST_sclass(sym) == SCLASS_COMMON) {
-      if (ST_is_not_used (sym)) continue;
-      (void)EMT_Put_Elf_Symbol (sym);
-    }
-  }
-
-  if (Emit_Global_Data) {
-    char *newname;
-    // create dummy symbol to represent the section
-    FOREACH_SYMBOL (GLOBAL_SYMTAB, sym, i) {
-      if (ST_class(sym) != CLASS_BLOCK) continue;
-      if (!STB_section(sym)) continue;
-      // mergeable sections will be emitted into each .o
-      if (SEC_is_merge(STB_section_idx(sym))) continue;
-#ifdef TARG_ST
-      // [CL] generate unique names
-      UINT len = strlen ("_symbol_") + strlen(Ipa_Label_Suffix) + 1;
-      char *new_str = (char *) alloca (len);
-      strcpy (new_str, "_symbol_");
-      strcat (new_str, Ipa_Label_Suffix);
-      newname = Index_To_Str(Save_Str2(ST_name(sym), new_str));
-#else
-      newname = Index_To_Str(Save_Str2(ST_name(sym), "_symbol"));
-#endif
-#if 0
-      if (Object_Code) {
-	(void) Em_Add_New_Symbol (
-		 newname,
-		 0 /* offset */, 
-		 0 /* size */,
-		 STB_GLOBAL, STT_OBJECT, STO_INTERNAL,
-		 Em_Get_Section_Index (em_scn[STB_scninfo_idx(sym)].scninfo));
-      }
-#endif
-#ifdef TARG_ST
-      // [CG]: Ensure section is initialized
-      Init_Section(sym); 
-#endif
-      if (Assembly || MiniR_Code) {
-	Change_Section_Origin (sym, 0);
-	fprintf (MiniR_Code? MiniR_File : Asm_File, "\t%s\t%s\n", AS_GLOBAL, newname);
-#ifdef TARG_ST
-	fprintf (MiniR_Code? MiniR_File : Asm_File, "\t%s\t%s\n", AS_INTERNAL, newname);
-#else
-	ASM_DIR_STOINTERNAL(newname);
-#endif
-	fprintf (MiniR_Code? MiniR_File : Asm_File, "%s:\n", newname);
-      }
-      if (Lai_Code) {
-	Change_Section_Origin (sym, 0);
-	fprintf (Lai_File, "\t%s\t%s\n", AS_GLOBAL, newname);
-	ASM_DIR_STOINTERNAL(newname);
-	fprintf (Lai_File, "%s:\n", newname);
-      }
-    }
-  }
-
-  /* 
-   * If there weren't any PUs, we may have data initialization
-   * associated with file scope data here:
-   */
-  Process_Bss_Data (GLOBAL_SYMTAB);
-  Process_Initos_And_Literals (GLOBAL_SYMTAB);
-  // We need two calls to  Process_Initos_And_Literals (GLOBAL_SYMTAB)
-  // because while writing out INITOs new literals may be allocated
-  Process_Initos_And_Literals (GLOBAL_SYMTAB);
-  Process_Distr_Array ();
-
-  FOREACH_SYMBOL (GLOBAL_SYMTAB, sym, i) {
-    if (ST_class(sym) == CLASS_NAME) {
-      if (ST_emit_symbol(sym)) {
-	/* may be notype symbol */
-	(void)EMT_Put_Elf_Symbol(sym);
-      }
-#if 0
-      else if (ST_sclass(sym) == SCLASS_COMMENT && Object_Code 
-	       && ! Read_Global_Data	// just put once in symtab.o
-	       && ! DEBUG_Optimize_Space)
-	{
-	  char *buf = (char *) alloca (strlen("ident::: ") + strlen(ST_name(sym)));
-	  sprintf(buf, "ident:::%s", ST_name(sym));
-	  Em_Add_Comment (buf);
-	}
-#endif
-    }
-
-    if (ST_class(sym) == CLASS_VAR &&
-        ST_is_fill_align(sym) &&
-        !Has_Base_Block(sym)) {
-      /* fill/align symbols are supposed to be allocated in be
-       * but are not done if there were no PUs in the file.
-       * Report that error here.
-       */
-
-      ErrMsg (EC_Is_Bad_Pragma_Abort, 
-              "Fill/Align symbol",
-              ST_name(sym),
-              "requires the file to contain at least one function");
-    }
-	
-    if (Has_Strong_Symbol(sym)) {
-      ST *strongsym = ST_strong(sym);
-      unsigned char symtype;
-
-#ifndef TARG_ST
-      /* (cbr) emit alias information evenif strongsym is extern */
-      if (!Has_Base_Block(strongsym))
-	continue;	/* strong not allocated, so ignore weak */
-#endif
-      
-      if (ST_class(sym) == CLASS_FUNC) {
-	symtype = STT_FUNC;
-      }
-      else {
-	symtype = STT_OBJECT;
-      }
-
-      if (Assembly) {
-	CGEMIT_Weak_Alias (sym, strongsym);
-	Print_Dynsym (Asm_File, sym);
-      }
-#if 0
-      if (Object_Code) {
-	Em_Add_New_Weak_Symbol (
-	  ST_name(sym), 
-	  symtype,
-	  st_other_for_sym (sym),
-	  EMT_Put_Elf_Symbol(strongsym));
-      }
-#endif
-    }
-    else if (Has_Base_Block(sym) && ST_class(ST_base(sym)) != CLASS_BLOCK
-	&& ST_emit_symbol(sym)) {
-      // alias
-      if (Assembly) {
-	if ( ! ST_is_export_local(sym)) {
-	  fprintf(Asm_File, "\t%s\t", AS_GLOBAL);
-	  EMT_Write_Qualified_Name(Asm_File, sym);
-	  fprintf ( Asm_File, "\n");
-#ifdef TARG_ST
-	  EMT_Visibility (Asm_File, NULL, ST_export(sym), sym);
-#endif
-	}
-	CGEMIT_Alias (sym, ST_base(sym));
-      }
-#if 0
-      if (Lai_Code) {
-	if (!ST_is_export_local(sym)) {
-	  fprintf(Lai_File, "\t%s\t", AS_GLOBAL);
-	  EMT_Write_Qualified_Name(Lai_File, sym);
-	  fprintf ( Lai_File, "\n");
-
-	}
-      }
-#endif
-    }
-    else if (ST_class(sym) == CLASS_FUNC && ST_emit_symbol(sym)
-	// possible to have local not-used emit_symbols,
-	// cause mp does that to mark them as unused,
-	// and don't want to emit those.
-	&& ST_sclass(sym) == SCLASS_EXTERN) {
-      // some unreferenced fortran externs need to be emitted
-      (void)EMT_Put_Elf_Symbol(sym);
-      if (Assembly) {
-	fprintf(Asm_File, "\t%s\t", AS_GLOBAL);
-	EMT_Write_Qualified_Name(Asm_File, sym);
-	fprintf(Asm_File, "\n");
-#ifdef TARG_ST
-	EMT_Visibility(Asm_File, NULL, ST_export(sym), sym);
-#endif
-      }
-      if (Lai_Code) {
-	fprintf(Lai_File, "\t%s\t", AS_GLOBAL);
-	EMT_Write_Qualified_Name(Lai_File, sym);
-	fprintf(Lai_File, "\n");
-#ifdef TARG_ST
-	EMT_Visibility(Lai_File, NULL, ST_export(sym), sym);
-#endif
-      }
-    }
-  }
-
-#ifdef TEMPORARY_STABS_FOR_GDB
-  // This is an ugly hack to enable basic debugging for IA-32 target
-  if (PU_base == NULL && Assembly && Debug_Level > 0) {
-    fprintf(Asm_File, ".Ltext0:\n");
-  }
-#endif
-
-#ifndef TARG_ST // [CL] previous text_region was closed it the end of EMT_Emit_PU()
-  if (generate_elf_symbols && PU_section != NULL) {
-    end_previous_text_region(PU_section, text_PC);
-  }
-#endif
-
-#if 0
-  if (Object_Code) {
-    Em_Options_Scn();
-  }
-#endif
-  if (generate_dwarf) {
-    // must write out dwarf unwind info before text section is ended
-    Cg_Dwarf_Finish (PU_section);
-  }
-
-  /* Write out the initialized data to the object file. */
-  for (i = 1; i <= last_scn; i++) {
-    sym = em_scn[i].sym;
-#if 0
-    if (Object_Code) {
-
-#ifdef PV_205345
-      /* Data section alignment is initially set to the maximum
-       * alignment required by the objects allocated to the section.
-       * Whenever Find_Alignment is called for an object in a section
-       * with smaller alignment than it's quantum of interest, it
-       * updates the section alignment to guarantee that the
-       * determined alignment is valid.  This override can be enabled
-       * with -DPV_205345 to force alignment to at least 8 bytes.
-       */
-      if (STB_align(sym) < 8) Set_STB_align(sym, 8);
-#endif /* PV_205345 */
-
-      if (STB_nobits(sym)) {
-	/* For the .bss section, the size field should be set explicitly. */
-	Em_Add_Bytes_To_Scn (em_scn[i].scninfo, NULL,  
-		STB_size(sym), STB_align(sym));
-      }
-      else {
-	Em_Change_Section_Alignment (em_scn[i].scninfo, STB_align(sym));
-      }
-      Em_End_Section (em_scn[i].scninfo);
-    }
-#endif
-
-    if (Assembly) {
-      UINT32 tmp, power;
-      power = 0;
-      for (tmp = STB_align(sym); tmp > 1; tmp >>= 1) power++;
-      fprintf (Asm_File, "\t%s %s\n", AS_SECTION, ST_name(sym));
-      ASM_DIR_ALIGN(power, sym);
-    }
-    if (Lai_Code) {
-      UINT32 tmp, power;
-      power = 0;
-      for (tmp = STB_align(sym); tmp > 1; tmp >>= 1) power++;
-      fprintf (Lai_File, "\t%s %s\n", AS_SECTION, ST_name(sym));
-      fprintf(Lai_File, "\t%s %d\n", AS_ALIGN,STB_align(sym));
-    }
-  }
-
-  INT dwarf_section_count = 0;
-
-  if (generate_dwarf) {
-    dwarf_section_count = Em_Dwarf_Prepare_Output ();
-  }
-
-  if (Assembly) {
-#ifdef TARG_ST
-    if (List_Notes)
-#endif
-      fprintf(Asm_File, "\t%s %s %d\n", ASM_CMNT_LINE, AS_GPVALUE, GP_DISP);
-    //    ASM_DIR_GPVALUE();
-#ifdef TARG_ST
-  // (cbr) we enter here either for debug dwarf emission or exceptions frame dwarf unwinding 
-  if (CG_emit_asm_dwarf || CXX_Exceptions_On) {
-#else
-  if (CG_emit_asm_dwarf) {
-#endif
-      Cg_Dwarf_Write_Assembly_From_Symbolic_Relocs(Asm_File,
-						   dwarf_section_count,
-						   !Use_32_Bit_Pointers);
-    }
-  }
-  if (Lai_Code) {
-    fprintf(Lai_File, "//\t%s %d\n", AS_GPVALUE, GP_DISP);
-  }
-
-#if 0
-  if (Object_Code && !CG_emit_asm_dwarf) {
-    /* TODO: compute the parameters more accurately. For now we assume 
-     * that all integer and FP registers are used. If we change the GP
-     * value to be non-zero, make sure we adjust the addends for the 
-     * GP_REL cases.
-     */
-    Em_Write_Reginfo (GP_DISP, 0xffffffff, 0xffffffff, Pure_ABI); 
-
-    Em_Dwarf_Write_Scns (Cg_Dwarf_Translate_To_Elf);
-
-    /* finalize .interfaces section (must be before Em_End_File) */
-    if ( EMIT_interface_section )
-      Interface_Scn_End_File();
-
-    Em_End_File ();
-    Em_Dwarf_End ();
-    Em_Cleanup_Unwind ();
-  }
-#endif
-
-  if (Emit_Global_Data) {
-    // prepare block data to be written to .G file.
-    // need to remove section info so can be reset when read.
-    FOREACH_SYMBOL (GLOBAL_SYMTAB, sym, i) {
-      if (ST_class(sym) == CLASS_CONST
-		  && SEC_is_merge(STB_section_idx(ST_base(sym))) ) {
-	// reallocate in each file
-	Set_ST_base(sym,sym);	
-	Set_ST_ofst(sym,0);	
-      }
-      else if (ST_class(sym) == CLASS_VAR ||
-	       ST_class(sym) == CLASS_CONST ||
-	       ST_class(sym) == CLASS_FUNC) {
-#ifdef TARG_ST
-	if (ST_is_weak_symbol(sym)
-	    && (ST_sclass(sym) == SCLASS_DGLOBAL
-		|| ST_sclass(sym) == SCLASS_UGLOBAL)) {
-          /* Weak definition becomes weak reference in the .G file */
-	  Set_ST_sclass(sym, SCLASS_EXTERN);
-	  Set_ST_base(sym, sym);
-	  Set_ST_ofst(sym, 0);
-	}
-#endif
-	if (ST_sclass (sym) != SCLASS_COMMON && !ST_is_weak_symbol(sym) ) {
-	  Set_ST_sclass(sym, SCLASS_EXTERN);
-	}
-      }
-      if (ST_class(sym) != CLASS_BLOCK) continue;
-      Set_STB_scninfo_idx(sym,0);
-      Set_STB_compiler_layout(sym);
-      if (STB_section(sym)) {
-	Reset_STB_section(sym);
-	Reset_STB_root_base(sym);
-	Set_STB_section_idx(sym,0);
-#ifdef TARG_ST
-	// [CL] generate unique names
-	UINT len = strlen ("_symbol_") + strlen(Ipa_Label_Suffix) + 1;
-	char *new_str = (char *) alloca (len);
-	strcpy (new_str, "_symbol_");
-	strcat (new_str, Ipa_Label_Suffix);
-	Set_ST_name(sym, Save_Str2(ST_name(sym), new_str));
-#else
-	Set_ST_name(sym, Save_Str2(ST_name(sym), "_symbol"));
-#endif
-	Set_ST_sclass(sym, SCLASS_EXTERN);
-	Set_ST_export(sym, EXPORT_INTERNAL);
-      }
-      else {
-	// in case non-section block
-	Set_ST_sclass(sym, SCLASS_EXTERN);
-      }
-    }
-  }
-
-  // Finish off the TCON to symbolic names table:
-  //  Fini_Tcon_Info ();
-
-#ifdef TARG_ST
-  // Target dependent end file.
-  if (Assembly) CGEMIT_End_File_In_Asm ();
-#endif    
-
-  return;
-}
-
 #else // END_TARG_ST_IFDEF
 #ifdef TARG_X8664
 extern void EETARG_Emit_IP_Calc_Func(void);
@@ -7364,6 +6766,7 @@ mINT32 EMT_Put_Elf_Symbol (ST *sym)
 	) {
 #ifdef TARG_ST
       // (cbr)
+      /***** FUNCTION  *******/
       if (ST_sclass(sym) == SCLASS_EXTERN) 
 	{
 	  if (ST_is_weak_symbol(sym)) {
@@ -7381,18 +6784,20 @@ mINT32 EMT_Put_Elf_Symbol (ST *sym)
 	  EMT_Visibility (Asm_File, NULL, ST_export(sym), sym);
 	}
 #endif
-	fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_TYPE);
-	EMT_Write_Qualified_Name (MiniR_Code ? MiniR_File : Asm_File, sym);
-	fprintf (MiniR_Code ? MiniR_File : Asm_File, ", %s\n", AS_TYPE_FUNC);
+	fprintf (Asm_File, "\t%s\t", AS_TYPE);
+	EMT_Write_Qualified_Name (Asm_File, sym);
+	fprintf (Asm_File, ", %s\n", AS_TYPE_FUNC);
       }
     else if (ST_class(sym) == CLASS_VAR && 
 	     ST_sclass(sym) == SCLASS_COMMON) {
+      /********* COMMON VAR *********/
       if (Assembly || Lai_Code || MiniR_Code) {
 	Print_Common (MiniR_Code ? Asm_File : MiniR_File, sym);
       }
     }
 #ifdef TARG_ST
     // (cbr) need to emit .weak for extern symbols as well
+    /********** EXTERN VAR ********/
     else if (ST_class(sym) == CLASS_VAR &&
 	     ST_sclass(sym) == SCLASS_EXTERN) {
       if (Assembly || Lai_Code || MiniR_Code) {
@@ -7507,7 +6912,7 @@ mINT32 EMT_Put_Elf_Symbol (ST *sym)
 		      symbind, STT_OBJECT, symother,
 		      ST_is_gp_relative(sym) ? SHN_MIPS_SUNDEFINED : SHN_UNDEF);
 #endif
-	  if (Assembly) {
+	  if (Assembly || MiniR_Code) {
 	    if (ST_is_weak_symbol(sym)) {
 	      fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_WEAK);
 	      EMT_Write_Qualified_Name( MiniR_Code ? MiniR_File : Asm_File, sym);
@@ -7583,7 +6988,7 @@ mINT32 EMT_Put_Elf_Symbol (ST *sym)
       if (sclass == SCLASS_EXTERN) {
         symindex = Em_Add_New_Undef_Symbol (
 			ST_name(sym), symbind, STT_FUNC, symother);
-	if (Assembly) {
+	if (Assembly || MiniR_Code) {
 	  if (ST_is_weak_symbol(sym)) {
 	    fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_WEAK);
 	    EMT_Write_Qualified_Name(MiniR_Code ? MiniR_File : Asm_File, sym);
@@ -11792,6 +11197,120 @@ Trace_Init_Loc ( INT scn_idx, Elf64_Xword scn_ofst, INT32 repeat)
 }
 
 
+#ifdef TARG_ST
+/* (cbr) DDTSst24451. add support for label diffs initializers */
+/* ====================================================================
+ *    Write_Labdiff (lab1, lab2, scn_idx, scn_ofst, repeat, size)
+ * ====================================================================
+ */
+static Elf64_Word
+Write_Labdiff (
+  LABEL_IDX lab1,	/* left symbol */
+  LABEL_IDX lab2,       /* right symbol */
+  INT scn_idx,		/* Section to emit it in */
+  Elf64_Word scn_ofst,	/* Section offset to emit it at */
+  INT32	repeat,		/* Repeat count */
+  INT size		/* 2 or 4 bytes */
+)
+{
+  INT32 i;
+  ST *basesym1;
+  ST *basesym2;
+  INT64 base1_ofst = 0;
+  INT64 base2_ofst = 0;
+  pSCNINFO scn = em_scn[scn_idx].scninfo;
+  INT32 val;
+
+  if ( Trace_Init ) {
+    #pragma mips_frequency_hint NEVER
+    Trace_Init_Loc (scn_idx, scn_ofst, repeat);
+    fprintf ( TFile, "LABDIFF " );
+    fprintf ( TFile, "%s - %s\n", LABEL_name(lab1), LABEL_name(lab2));
+  }
+
+  /* symbols must have an address */
+  Is_True (lab1, ("cgemit: Labdiff lab1 is null"));
+  Is_True (lab2, ("cgemit: Labdiff lab2 is null"));
+
+  basesym1 = BB_cold(Get_Label_BB(lab1)) ? cold_base : text_base;
+  basesym2 = BB_cold(Get_Label_BB(lab2)) ? cold_base : text_base;
+  base1_ofst = Get_Label_Offset(lab1);
+  base2_ofst = Get_Label_Offset(lab2);
+
+  if (Use_Separate_PU_Section(current_pu,basesym2)) {
+	/* use PU text section rather than generic one */
+	basesym2 = PU_base;
+  }
+  Is_True (basesym1 == basesym2, ("cgemit: Labdiff bases not same"));
+  val = base1_ofst - base2_ofst;
+  if (val < 0) val = 0;
+  if (size == 2) {
+	if (val > INT16_MAX) {
+		DevWarn("symdiff value not 16-bits; will try recompiling with -TENV:long_eh_offsets");
+		Early_Terminate (RC_OVERFLOW_ERROR);
+	}
+	val = val << 16;	/* for Add_Bytes */
+  }
+
+  for ( i = 0; i < repeat; i++ ) {
+    if (Assembly || MiniR_Code) {
+      fprintf (MiniR_Code ? MiniR_file : Output_File, "\t%s\t", (size == 2 ? AS_HALF : AS_WORD));
+      fprintf((MiniR_Code ? MiniR_file : Output_File, "%s", LABEL_name(lab1));
+      fprintf ((MiniR_Code ? MiniR_file : Output_File, "-");
+      fprintf((MiniR_Code ? MiniR_file : Output_File, "%s", LABEL_name(lab2));
+      fprintf ((MiniR_Code ? MiniR_file : Output_File, "\n");
+    }
+    if (Object_Code) {
+      Em_Add_Bytes_To_Scn (scn, (char *) &val, size, 1);
+    }
+    scn_ofst += size;
+  }
+#ifdef TARG_ST
+  // [CL]
+  Set_LABEL_emitted(lab1);
+  Set_LABEL_emitted(lab2);
+#endif
+  return scn_ofst;
+}
+#endif
+
+#ifdef KEY
+#include <map>
+std::map<const ST*, const ST*> st_to_pic_st;
+// Emit PIC version of a symbol, here, a typeinfo symbol
+static Elf64_Word
+Emit_PIC_version (ST * st, Elf64_Word scn_ofst)
+{
+  if (st_to_pic_st.find (st) == st_to_pic_st.end())
+  {
+    ST * pic_st = New_ST (GLOBAL_SYMTAB);
+    STR_IDX name = Save_Str2 ("DW.ref.", ST_name (st));
+    ST_Init(pic_st, name, CLASS_VAR, SCLASS_DGLOBAL, EXPORT_HIDDEN, MTYPE_TO_TY_array[MTYPE_U8]);
+    Set_ST_is_weak_symbol (pic_st);
+    Set_ST_is_initialized (pic_st);
+    ST_ATTR_IDX st_attr_idx;
+    ST_ATTR&    st_attr = New_ST_ATTR (GLOBAL_SYMTAB, st_attr_idx);
+    ST_ATTR_Init (st_attr, ST_st_idx (pic_st), ST_ATTR_SECTION_NAME, Save_Str2 (".gnu.linkonce.d.", ST_name (pic_st)));
+                                                                                
+    INITV_IDX iv = New_INITV();
+    INITV_Init_Symoff (iv, st, 0, 1);
+    New_INITO (ST_st_idx (pic_st), iv);
+
+    Assign_ST_To_Named_Section (pic_st, ST_ATTR_section_name (st_attr));
+    st_to_pic_st [st] = pic_st;
+  }
+
+#ifdef TARG_ST
+  fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\tDW.ref.%s-.\n", AS_WORD, ST_name (st));
+#else
+  fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t.long\tDW.ref.%s-.\n", ST_name (st));
+#endif
+
+  return scn_ofst + 4;
+}
+#endif
+
+
 #ifdef KEY
 static int exception_table_id=0;
 const char *lsda_ttype_base = ".LSDATTYPEB";
@@ -12194,7 +11713,7 @@ Write_Symdiff (
   Is_True (Has_Base_Block(sym2), ("cgemit: Symdiff sym2 not allocated"));
 
   BB *labb = Get_Label_BB(lab1);
-  basesym1 = BB_cold(Get_Label_BB(lab1)) && !MiniR_Code ? cold_base : text_base;
+  basesym1 = BB_cold(Get_Label_BB(lab1)) ? cold_base : text_base;
   base1_ofst = Get_Label_Offset(lab1);
 #ifdef TARG_ST
   if (Object_Code) {
@@ -12244,36 +11763,6 @@ Write_Symdiff (
   return scn_ofst;
 }
 
-#ifdef KEY
-#include <map>
-std::map<const ST*, const ST*> st_to_pic_st;
-// Emit PIC version of a symbol, here, a typeinfo symbol
-static Elf64_Word
-Emit_PIC_version (ST * st, Elf64_Word scn_ofst)
-{
-  if (st_to_pic_st.find (st) == st_to_pic_st.end())
-  {
-    ST * pic_st = New_ST (GLOBAL_SYMTAB);
-    STR_IDX name = Save_Str2 ("DW.ref.", ST_name (st));
-    ST_Init(pic_st, name, CLASS_VAR, SCLASS_DGLOBAL, EXPORT_HIDDEN, MTYPE_TO_TY_array[MTYPE_U8]);
-    Set_ST_is_weak_symbol (pic_st);
-    Set_ST_is_initialized (pic_st);
-    ST_ATTR_IDX st_attr_idx;
-    ST_ATTR&    st_attr = New_ST_ATTR (GLOBAL_SYMTAB, st_attr_idx);
-    ST_ATTR_Init (st_attr, ST_st_idx (pic_st), ST_ATTR_SECTION_NAME, Save_Str2 (".gnu.linkonce.d.", ST_name (pic_st)));
-                                                                                
-    INITV_IDX iv = New_INITV();
-    INITV_Init_Symoff (iv, st, 0, 1);
-    New_INITO (ST_st_idx (pic_st), iv);
-
-    Assign_ST_To_Named_Section (pic_st, ST_ATTR_section_name (st_attr));
-    st_to_pic_st [st] = pic_st;
-  }
-
-  fprintf (Asm_File, "\t.long\tDW.ref.%s-.\n", ST_name (st));
-  return scn_ofst + 4;
-}
-#endif
 
 /* ====================================================================
  *
@@ -13033,8 +12522,9 @@ Process_Initos_And_Literals (
         // in which case it is already emitted. 
         continue;
       }
+      fprintf(stdout, "st: %s; base:%s\n", ST_name(st), ST_name(base));
       FmtAssert(ST_class(base) == CLASS_BLOCK && STB_section(base),
-                ("inito (%s, %s) not allocated? ", ST_name(st), ST_name(base)));
+                ("inito (%s) not allocated? ", ST_name(st)));
       Init_Section(base); //make sure base is inited 
       // may need padding between objects in same section,
       // so always change origin
@@ -13472,17 +12962,28 @@ Check_If_Should_Align_PU (INT curpc)
   return (q - ((curpc/INST_BYTES) % q)) % q;
 }
 
-/* Scan the BBs in the region looking for cold BBs. If one is found,
- * create the cold text section if it hasn't already been created.
- * Also set the BB_cold BB flag accordingly.
+/* ====================================================================
+ *   Create_Cold_Text_Section
+ *
+ *    Scan the BBs in the region looking for cold BBs. If one is found,
+ *    create the cold text section if it hasn't already been created.
+ *    Also set the BB_cold BB flag accordingly.
+ * ====================================================================
  */
 static void
-Create_Cold_Text_Section(void)
+Create_Cold_Text_Section (void)
 {
   BB *bb;
 
+  //  FmtAssert(text_base != NULL, ("emit: text_base is null"));
   for (bb = REGION_First_BB; bb; bb = BB_next(bb)) {
-    if (EMIT_use_cold_section && BB_Is_Cold(bb)) {
+#ifdef TARG_ST
+    // [CG] hot/cold placement for .text section only
+    if (Is_Text_Section(text_base) &&
+#else 
+    if (
+#endif
+	EMIT_use_cold_section && BB_Is_Cold(bb)) {
       if (cold_base == NULL) {
 	ST *st = Copy_ST(text_base);
 	Set_ST_blk(st, Copy_BLK(ST_blk(text_base)));
@@ -13518,8 +13019,12 @@ Create_Cold_Text_Section(void)
 }
 
 
-/* Set PU_base, PU_section and PC according to whether <bb> is
- * in the hot or cold region.
+/* ====================================================================
+ *   Setup_Text_Section_For_BB
+ *
+ *   Set PU_base, PU_section and PC according to whether <bb> is
+ *   in the hot or cold region.
+ * ====================================================================
  */
 static void
 Setup_Text_Section_For_BB (BB *bb)
@@ -13532,6 +13037,15 @@ Setup_Text_Section_For_BB (BB *bb)
 #else /* defined(BUILD_OS_DARWIN) */
     if (Assembly) {
       fprintf (Asm_File, "\n\t%s %s\n", AS_SECTION, ST_name(PU_base));
+#ifdef TARG_ST
+      // [CL] force alignment if we have just switched to cold
+      // section for the current PU (as alignment constraints in
+      // hb_hazards.cxx:Make_Bundles() are reset for each new
+      // PU, we must reset alignment here)
+      if ( (PU_base == cold_base) && (DEFAULT_FUNCTION_ALIGNMENT) ) {
+	fprintf(Asm_File, "\t%s %d\n", AS_ALIGN, DEFAULT_FUNCTION_ALIGNMENT);
+      }
+#endif
     }
 #endif /* defined(BUILD_OS_DARWIN) */
     if (cold_bb) {
@@ -14711,6 +14225,10 @@ Emit_Options (void)
 }
 #endif // KEY
 
+/* ====================================================================
+ *    EMT_End_File ()
+ * ====================================================================
+ */
 void
 EMT_End_File( void )
 {
@@ -14756,7 +14274,17 @@ EMT_End_File( void )
 		if (!STB_section(sym)) continue;
 		// mergeable sections will be emitted into each .o
 		if (SEC_is_merge(STB_section_idx(sym))) continue;
+#ifdef TARG_ST
+      // [CL] generate unique names
+      UINT len = strlen ("_symbol_") + strlen(Ipa_Label_Suffix) + 1;
+      char *new_str = (char *) alloca (len);
+      strcpy (new_str, "_symbol_");
+      strcat (new_str, Ipa_Label_Suffix);
+      newname = Index_To_Str(Save_Str2(ST_name(sym), new_str));
+#else
 		newname = Index_To_Str(Save_Str2(ST_name(sym), "_symbol"));
+#endif
+#ifndef TARG_ST
 		if (Object_Code) {
 	  		(void) Em_Add_New_Symbol (
 				newname,
@@ -14765,24 +14293,30 @@ EMT_End_File( void )
 				STB_GLOBAL, STT_OBJECT, STO_INTERNAL,
 				Em_Get_Section_Index (em_scn[STB_scninfo_idx(sym)].scninfo));
 		}
-		if (Assembly) {
-            char * sym_print_name = 
-#if defined(BUILD_OS_DARWIN)
-			  underscorify(newname)
-#else /* defined(BUILD_OS_DARWIN) */
-			  newname
-#endif /* defined(BUILD_OS_DARWIN) */
-              ;
-
- 			Change_Section_Origin (sym, 0);
-#ifdef KEY
-			// TODO: Handle CG_file_scope_asm_seen
-			fprintf ( Asm_File, "\t%s\t0\n", AS_ALIGN );
 #endif
-			fprintf (Asm_File, "\t%s\t%s\n", AS_GLOBAL, sym_print_name);
-			fprintf (Asm_File, "\t%s\t%s\n", AS_INTERNAL, sym_print_name);
-			ASM_DIR_STOINTERNAL(newname);
-			fprintf (Asm_File, "%s:\n", newname);
+
+#ifdef TARG_ST
+                // [CG]: Ensure section is initialized
+                Init_Section(sym); 
+#endif
+		if (Assembly || MiniR_Code) {
+		  char * sym_print_name = 
+#if defined(BUILD_OS_DARWIN)
+		    underscorify(newname);
+#else /* defined(BUILD_OS_DARWIN) */
+		    newname;
+#endif /* defined(BUILD_OS_DARWIN) */
+
+		  Change_Section_Origin (sym, 0);
+#ifdef KEY
+		  // TODO: Handle CG_file_scope_asm_seen
+		  fprintf (MiniR_Code? MiniR_File :  Asm_File, "\t%s\t0\n", AS_ALIGN );
+#endif
+		  fprintf (MiniR_Code? MiniR_File : Asm_File, "\t%s\t%s\n", AS_GLOBAL, sym_print_name);
+
+		  fprintf (MiniR_Code? MiniR_File : Asm_File, "\t%s\t%s\n", AS_INTERNAL, sym_print_name);
+		  ASM_DIR_STOINTERNAL(newname);
+		  fprintf (MiniR_Code? MiniR_File : Asm_File, "%s:\n", newname);
 		}
 	}
   }
@@ -14806,6 +14340,7 @@ EMT_End_File( void )
 		/* may be notype symbol */
 		EMT_Put_Elf_Symbol(sym);
 	}
+#ifndef TARG_ST
     	else if (ST_sclass(sym) == SCLASS_COMMENT && Object_Code 
 		&& ! Read_Global_Data	// just put once in symtab.o
 		&& ! DEBUG_Optimize_Space)
@@ -14814,6 +14349,7 @@ EMT_End_File( void )
     		sprintf(buf, "ident:::%s", ST_name(sym));
     		Em_Add_Comment (buf);
 	}
+#endif
     }
 
     if (ST_class(sym) == CLASS_VAR &&
@@ -14850,6 +14386,7 @@ EMT_End_File( void )
 	CGEMIT_Weak_Alias (sym, strongsym);
 	Print_Dynsym (Asm_File, sym);
       }
+#ifndef TARG_ST
       if (Object_Code) {
 	Em_Add_New_Weak_Symbol (
 	  ST_name(sym), 
@@ -14857,6 +14394,7 @@ EMT_End_File( void )
 	  st_other_for_sym (sym),
 	  EMT_Put_Elf_Symbol(strongsym));
       }
+#endif
     }
     else if (Has_Base_Block(sym) && ST_class(ST_base(sym)) != CLASS_BLOCK
 	&& ST_emit_symbol(sym))
@@ -14871,6 +14409,9 @@ EMT_End_File( void )
 		  ST_name(sym)
 #endif /* defined(BUILD_OS_DARWIN) */
 		  );
+#ifdef TARG_ST
+	  EMT_Visibility (Asm_File, NULL, ST_export(sym), sym);
+#endif
 	    }
 	    CGEMIT_Alias (sym, ST_base(sym));
 	}
@@ -14891,6 +14432,9 @@ EMT_End_File( void )
 		  ST_name(sym)
 #endif /* defined(BUILD_OS_DARWIN) */
 		  );
+#ifdef TARG_ST
+	EMT_Visibility(Asm_File, NULL, ST_export(sym), sym);
+#endif
 	}
     }
   }
@@ -14902,13 +14446,17 @@ EMT_End_File( void )
   }
 #endif
 
+#ifndef TARG_ST // [CL] previous text_region was closed it the end of EMT_Emit_PU()
   if (generate_elf_symbols && PU_section != NULL) {
     end_previous_text_region(PU_section, Em_Get_Section_Offset(PU_section));
   }
+#endif
 
+#ifndef TARG_ST
   if (Object_Code) {
     Em_Options_Scn();
   }
+#endif
   if (generate_dwarf) {
     // must write out dwarf unwind info before text section is ended
     Cg_Dwarf_Finish (PU_section);
@@ -14916,8 +14464,9 @@ EMT_End_File( void )
 
   /* Write out the initialized data to the object file. */
   for (i = 1; i <= last_scn; i++) {
-      sym = em_scn[i].sym;
-      if (Object_Code) {
+    sym = em_scn[i].sym;
+#ifndef TARG_ST
+    if (Object_Code) {
 
 #ifdef PV_205345
 	/* Data section alignment is initially set to the maximum
@@ -14941,6 +14490,8 @@ EMT_End_File( void )
 	}
         Em_End_Section (em_scn[i].scninfo);
       }
+#endif
+
       if (Assembly) {
 	UINT32 tmp, power;
 	power = 0;
@@ -14969,11 +14520,21 @@ EMT_End_File( void )
   }
 
   if (Assembly) {
+#ifdef TARG_ST
+    if (List_Notes)
+      fprintf(Asm_File, "\t%s %s %d\n", ASM_CMNT_LINE, AS_GPVALUE, GP_DISP);
+#else
     ASM_DIR_GPVALUE();
+#endif
 #ifdef TARG_MIPS
     if (! CG_emit_non_gas_syntax) {
 #endif
-    if (CG_emit_asm_dwarf) {
+#ifdef TARG_ST
+  // (cbr) we enter here either for debug dwarf emission or exceptions frame dwarf unwinding 
+  if (CG_emit_asm_dwarf || CXX_Exceptions_On) {
+#else
+  if (CG_emit_asm_dwarf) {
+#endif
       Cg_Dwarf_Write_Assembly_From_Symbolic_Relocs(Asm_File,
 						   dwarf_section_count,
 						   !Use_32_Bit_Pointers);
@@ -14993,6 +14554,7 @@ EMT_End_File( void )
     }
 #endif
   }
+#ifndef TARG_ST
   if (Object_Code && !CG_emit_asm_dwarf) {
     /* TODO: compute the parameters more accurately. For now we assume 
      * that all integer and FP registers are used. If we change the GP
@@ -15011,6 +14573,7 @@ EMT_End_File( void )
     Em_Dwarf_End ();
     Em_Cleanup_Unwind ();
   }
+#endif
 
   if (Emit_Global_Data) {
 	// prepare block data to be written to .G file.
@@ -15027,29 +14590,54 @@ EMT_End_File( void )
 			|| ST_class(sym) == CLASS_CONST
 			|| ST_class(sym) == CLASS_FUNC)
 		{
-		        if (ST_sclass (sym) != SCLASS_COMMON
-			    && !ST_is_weak_symbol(sym) )
-			{
-				Set_ST_sclass(sym, SCLASS_EXTERN);
-			}
+#ifdef TARG_ST
+		  if (ST_is_weak_symbol(sym)
+		      && (ST_sclass(sym) == SCLASS_DGLOBAL
+			  || ST_sclass(sym) == SCLASS_UGLOBAL)) {
+		    /* Weak definition becomes weak reference in the .G file */
+		    Set_ST_sclass(sym, SCLASS_EXTERN);
+		    Set_ST_base(sym, sym);
+		    Set_ST_ofst(sym, 0);
+		  }
+#endif
+		  if (ST_sclass (sym) != SCLASS_COMMON && !ST_is_weak_symbol(sym) ) {
+		    Set_ST_sclass(sym, SCLASS_EXTERN);
+		  }
 		}
 		if (ST_class(sym) != CLASS_BLOCK) continue;
 		Set_STB_scninfo_idx(sym,0);
 		Set_STB_compiler_layout(sym);
 		if (STB_section(sym)) {
-			Reset_STB_section(sym);
-			Reset_STB_root_base(sym);
-			Set_STB_section_idx(sym,0);
-			Set_ST_name(sym, Save_Str2(ST_name(sym), "_symbol"));
-			Set_ST_sclass(sym, SCLASS_EXTERN);
-			Set_ST_export(sym, EXPORT_INTERNAL);
+		  Reset_STB_section(sym);
+		  Reset_STB_root_base(sym);
+		  Set_STB_section_idx(sym,0);
+#ifdef TARG_ST
+		  // [CL] generate unique names
+		  UINT len = strlen ("_symbol_") + strlen(Ipa_Label_Suffix) + 1;
+		  char *new_str = (char *) alloca (len);
+		  strcpy (new_str, "_symbol_");
+		  strcat (new_str, Ipa_Label_Suffix);
+		  Set_ST_name(sym, Save_Str2(ST_name(sym), new_str));
+#else
+		  Set_ST_name(sym, Save_Str2(ST_name(sym), "_symbol"));
+#endif
+		  Set_ST_sclass(sym, SCLASS_EXTERN);
+		  Set_ST_export(sym, EXPORT_INTERNAL);
 		}
 		else {
-			// in case non-section block
-			Set_ST_sclass(sym, SCLASS_EXTERN);
+		  // in case non-section block
+		  Set_ST_sclass(sym, SCLASS_EXTERN);
 		}
 	}
   }
+
+  // Finish off the TCON to symbolic names table:
+  //  Fini_Tcon_Info ();
+
+#ifdef TARG_ST
+  // Target dependent end file.
+  if (Assembly) CGEMIT_End_File_In_Asm ();
+#endif    
 
   if (MiniR_Code) {
     fclose(MiniR_File);
@@ -15069,7 +14657,9 @@ EMT_End_File( void )
     MiniR_Ofstream.close();
   }
 
+  return;
 }
+
 
 #if defined(BUILD_OS_DARWIN)
 typedef struct {

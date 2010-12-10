@@ -1019,7 +1019,7 @@ CG_Generate_Code(
   }
 #endif
 
-if (!MiniR_Code) { 
+  if (!MiniR_Code) { 
   /* Global register allocation, Scheduling:
    *
    * The overall algorithm is as follows:
@@ -1047,7 +1047,6 @@ if (!MiniR_Code) {
       Check_for_Dump (TP_COALESCE, NULL);
     }
 #endif
-
 #ifdef KEY
   // Earlier phases (esp. CFLOW) might have introduced local definitions and
   // uses for global TNs. Rename them to local TNs so that LRA can accurately
@@ -1144,7 +1143,6 @@ if (!MiniR_Code) {
     }
 #endif
  
-
   if (!CG_localize_tns)
   {
     // Earlier phases (esp. GCM) might have introduced local definitions
@@ -1186,6 +1184,7 @@ if (!MiniR_Code) {
   }
 
   LRA_Allocate_Registers (!region);
+
 #ifdef TARG_ST
   if (CG_enable_ssa) {
     //
@@ -1237,6 +1236,7 @@ if (!MiniR_Code) {
     Set_Error_Phase ( "Final SP adjustment" );
     Adjust_Entry_Exit_Code ( Get_Current_PU_ST() );
   }
+
 #ifdef TARG_ST
   // We have to pass after adjust entry exit code, because for stxp70 target,
   // we cannot update gra liveness between regalloc and the adjustment (pb
@@ -1250,6 +1250,7 @@ if (!MiniR_Code) {
     CFLOW_Optimize(CFLOW_BRANCH|CFLOW_UNREACHABLE|CFLOW_MERGE_EMPTY|CFLOW_REDUNDANT_RETURN, "CFLOW (after merge ops)", FALSE);
   }
 #endif
+
 
   if (Enable_CG_Peephole) {
     Set_Error_Phase("Extended Block Optimizer");
@@ -1335,7 +1336,18 @@ if (!MiniR_Code) {
 
   Reuse_Temp_TNs = orig_reuse_temp_tns;		/* restore */
 
-  } // MiniR_Code skip all this 
+ } else { //MiniR_Code
+  if (!region) {
+    /* The stack frame is final at this point, no more spilling after this.
+     * We can set the Frame_Len now.
+     * Then we can go through all the entry/exit blocks and fix the SP 
+     * adjustment OP or delete it if the frame length is zero.
+     */
+    Set_Frame_Len (Finalize_Stack_Frame());
+    Set_Error_Phase ( "Final SP adjustment" );
+    Adjust_Entry_Exit_Code ( Get_Current_PU_ST() );
+  }
+}
 
   if (region) {
     /*--------------------------------------------------------------------*/
@@ -1403,14 +1415,19 @@ if (!MiniR_Code) {
   } /* if (region */
 
   else if (MiniR_Code) { /* Dump PU in MiniR */
+    Set_Error_Phase ( "MiniR" );
     if (PU_has_exc_scopes(Get_Current_PU())) {
       EH_Write_Range_Table(rwn);
     }    
     MINIR_Dump_PU(Get_Current_PU_ST(), pu_dst, rwn);
+
+    Set_Error_Phase("Region Finalize");
     CG_Region_Finalize( NULL, NULL, rwn, alias_mgr,
 		       FALSE /* generate_glue_code */ );
     GRA_LIVE_Finish_PU();
     PQSCG_term();
+
+    Set_Error_Phase ( "Codegen Driver" );
   } 
   else { /* Emit PU */
     /* Write the EH range table. */
