@@ -587,9 +587,14 @@ CG_Generate_Code(
   // into the .s file, take care of that job and move on.
   if (WN_operator(rwn) == OPR_FUNC_ENTRY &&
       ST_asm_function_st(*WN_st(rwn))) {
-    FmtAssert(Assembly && !Object_Code,
+    FmtAssert((Assembly || MiniR_Code) && !Object_Code,
 	      ("Cannot produce non-assembly output with file-scope asm"));
-    fprintf(Asm_File, "\n%s\n", ST_name(WN_st(rwn)));
+    if (MiniR_Code) {
+      fprintf(MiniR_File, "AsmWrapper_begin:\n");
+      fprintf(MiniR_File, "%s\n", ST_name(WN_st(rwn)));
+      fprintf(MiniR_File, "AsmWrapper_end\n");
+    } else 
+      fprintf(Asm_File, "\n%s\n", ST_name(WN_st(rwn)));
 #ifdef KEY
     // Bug 14460: If the program has file-scope asm, it may have directly
     // used the .section attribute to allocate objects. As a result the 

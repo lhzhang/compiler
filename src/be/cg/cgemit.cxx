@@ -6457,13 +6457,14 @@ static void Print_Label (FILE *pfile, std::ostringstream *pstream, ST *st, INT64
 
     FmtAssert(!MiniR_Code || pstream!=NULL, ("Print_Label called with NULL file")); 
 
+    if (MiniR_Code)
+      *pstream << "  - label: " << EMT_Get_Qualified_Name(st) << "\n";
     if (ST_is_weak_symbol(st)) {
       if (Assembly) {
 	fprintf ( pfile, "\t%s\t", AS_WEAK);
 	EMT_Write_Qualified_Name(pfile, st);
 	fputc ('\n', pfile);
       }	else if (MiniR_Code) {
-	*pstream << "  - label: " << EMT_Get_Qualified_Name(st) << "\n";
 	*pstream << "    linkage: weak\n";
       }
       EMT_Visibility (pfile, pstream, ST_export(st), st);
@@ -6475,7 +6476,6 @@ static void Print_Label (FILE *pfile, std::ostringstream *pstream, ST *st, INT64
 	fputc ('\n', pfile);
 	EMT_Visibility (pfile, NULL, ST_export(st), st);
       } else if (MiniR_Code) {
-	*pstream << "  - label: " << EMT_Get_Qualified_Name(st) << "\n";
 	*pstream << "    linkage: global\n";
       }
       EMT_Visibility (pfile, pstream, ST_export(st), st);
@@ -6491,7 +6491,6 @@ static void Print_Label (FILE *pfile, std::ostringstream *pstream, ST *st, INT64
 	EMT_Write_Qualified_Name(pfile, st);
 	fprintf(pfile, "\n");
       } else if (MiniR_Code) {
-	*pstream << "  - label: " << EMT_Get_Qualified_Name(st) << "\n";
 	*pstream << "    linkage: global\n";
       }
       // [CL] output as hidden/internal so that we are close to the
@@ -12522,7 +12521,6 @@ Process_Initos_And_Literals (
         // in which case it is already emitted. 
         continue;
       }
-      fprintf(stdout, "st: %s; base:%s\n", ST_name(st), ST_name(base));
       FmtAssert(ST_class(base) == CLASS_BLOCK && STB_section(base),
                 ("inito (%s) not allocated? ", ST_name(st)));
       Init_Section(base); //make sure base is inited 
@@ -12825,14 +12823,15 @@ Process_Bss_Data (SYMTAB_IDX stab)
 #ifdef TARG_X8664
 	// Fix bug 617
 	// Do not emit .org for any symbols with section attributes.
-	{
+	if (Assembly) {
 	  ST* tmp_base = sym;
 	  BOOL has_named_section = FALSE;
 	  if ( ST_base(tmp_base) == base && ST_has_named_section (tmp_base)) {
 #if defined(BUILD_OS_DARWIN)
 	    emit_section_directive(base);
 #else /* defined(BUILD_OS_DARWIN) */
-	    fprintf ( Asm_File, "\n\t%s %s\n", AS_SECTION, ST_name(base));
+	    if (Assembly)
+	      fprintf ( Asm_File, "\n\t%s %s\n", AS_SECTION, ST_name(base));
 #endif /* defined(BUILD_OS_DARWIN) */
 	    has_named_section = TRUE;
 	  }
@@ -12869,7 +12868,7 @@ Process_Bss_Data (SYMTAB_IDX stab)
 #ifdef KEY
 	    } else if ( CG_file_scope_asm_seen &&
 	                TY_align( ST_type ( sym ) ) > 1 ) {
-		fprintf( Asm_File, "\t%s\t%d\n", AS_ALIGN, 
+	      fprintf( Asm_File, "\t%s\t%d\n", AS_ALIGN, 
 #if defined(BUILD_OS_DARWIN)
 			logtwo(TY_align( ST_type ( sym ) ))
 #else /* defined(BUILD_OS_DARWIN) */
@@ -12878,13 +12877,13 @@ Process_Bss_Data (SYMTAB_IDX stab)
 			);
 #endif /* KEY */
 	    } else
-	      fprintf( Asm_File, "\t%s\t0\n", AS_ALIGN );
+		fprintf(Asm_File, "\t%s\t0\n", AS_ALIGN );
 	  }
 	} 
 #else
 	Change_Section_Origin (base, ofst);
 #endif
-	if (Assembly) {
+	if (Assembly || MiniR_Code) {
 #ifdef KEY // bug 11593: do not generate a definition for aliased variables
 		if (ST_class(sym) == CLASS_VAR &&
 		    ST_base_idx(sym) != ST_st_idx(sym) &&
@@ -12897,7 +12896,15 @@ Process_Bss_Data (SYMTAB_IDX stab)
 #ifndef KEY	// SIZE computed above.
 		size = TY_size(ST_type(sym));
 #endif
-		Print_Label (Asm_File, NULL, sym, size);
+		Print_Label (Asm_File, &objects_MINIR, sym, size);
+		if (MiniR_Code) {
+		  objects_MINIR << "    section: " << ST_name(base) << "\n";
+		  if (ST_sclass(sym) == SCLASS_FSTATIC ||
+		      ST_sclass(sym) == SCLASS_PSTATIC)
+		    objects_MINIR << "    attr: static\n";
+		  if (ST_sclass(sym) == SCLASS_UGLOBAL)
+		    objects_MINIR << "    attr: global\n";
+		}
 		size_to_skip = size;
 		// before emitting space,
 		// first check whether next symbol has same offset.
@@ -12921,13 +12928,13 @@ Process_Bss_Data (SYMTAB_IDX stab)
 		}
 		// assume here that if multiple symbols with same offset,
 		// are sorted so that largest size is last.
-		if (size_to_skip > 0) {
+		if (size_to_skip > 0 && Assembly) {
 #ifdef TARG_MIPS
 		    if (CG_emit_non_gas_syntax)
 		      fprintf(Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)size_to_skip);
 		    else
 #endif
-		    ASM_DIR_SKIP(Asm_File, size_to_skip);
+			ASM_DIR_SKIP(Asm_File, size_to_skip);
 		    not_yet_skip_amt = MAX(0, not_yet_skip_amt-size_to_skip); // bug 10678
 		}
 	}
@@ -12938,8 +12945,9 @@ skip_definition:
   }
 #ifdef KEY // bug 10678
   if (bss_list.size() > 0) {
-    if (not_yet_skip_amt > 0)
+    if (not_yet_skip_amt > 0) {
       ASM_DIR_SKIP(Asm_File, not_yet_skip_amt);
+    }
   }
 #endif
 }
