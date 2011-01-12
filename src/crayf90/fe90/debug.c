@@ -5305,6 +5305,8 @@ static void dump_at_ntry (FILE		*out_file,
 
 	 if (TYP_LINEAR(ATD_TYPE_IDX(at_idx)) == Proc_Ptr &&
 	     (ATD_CLASS(at_idx) == Variable ||
+	      ATD_CLASS(at_idx) == Dummy_Argument ||
+	      ATD_CLASS(at_idx) == Function_Result ||
 	      ATD_CLASS(at_idx) == Struct_Component))
 	     fprintf(out_file, "  %-16s= %-7d\n", "ATD_PP_ATP",
 		     ATD_PP_ATP(at_idx));

@@ -95,6 +95,16 @@ int idx;
 
     idx = opnd->idx;
 
+    if (IR_OPR(idx) == Call_Opr && IR_FLD_L(idx) == AT_Tbl_Idx &&
+	AT_OBJ_CLASS(IR_IDX_L(idx)) == Pgm_Unit &&
+	ATP_PGM_UNIT(IR_IDX_L(idx)) == Function) {
+
+	idx = ATP_RSLT_IDX(IR_IDX_L(idx));
+
+	return (ATD_CLASS(idx) == Function_Result &&
+		TYP_LINEAR(ATD_TYPE_IDX(idx)) == Proc_Ptr);
+    }
+
     if (IR_OPR(idx) != Struct_Opr || IR_FLD_R(idx) != AT_Tbl_Idx)
 	return 0;
 

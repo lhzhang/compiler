@@ -3579,12 +3579,26 @@ int rr;
 	ident_idx = ntr_sym_tbl(&token, name_idx);
 	LN_DEF_LOC(name_idx) = TRUE;
 
-    } else if (AT_TYPED(ident_idx)) {
-	PRINTMSG(line, 550, Error, col, AT_OBJ_NAME_PTR(ident_idx),
-		 get_basic_type_str(ATD_TYPE_IDX(ident_idx)),
-		 "Procedure pointer", AT_DEF_LINE(ident_idx));
+    } else {
+	if (AT_OBJ_CLASS(ident_idx) == Pgm_Unit) {
+	    if (ATP_PGM_UNIT(ident_idx) != Function) {
+		PRINTMSG(line, 550, Error, col, AT_OBJ_NAME_PTR(ident_idx),
+			 "Program Unit", "Procedure pointer",
+			 AT_DEF_LINE(ident_idx));
 
-	return 1;
+		return 1;
+	    }
+
+	    ident_idx = ATP_RSLT_IDX(ident_idx);
+	}
+
+	if (AT_TYPED(ident_idx)) {
+	    PRINTMSG(line, 550, Error, col, AT_OBJ_NAME_PTR(ident_idx),
+		     get_basic_type_str(ATD_TYPE_IDX(ident_idx)),
+		     "Procedure pointer", AT_DEF_LINE(ident_idx));
+
+	    return 1;
+	}
     }
 
     spec->last_idx = ident_idx;

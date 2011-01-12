@@ -1622,19 +1622,27 @@ boolean parse_deref (opnd_type *result_opnd,
 
    if (LA_CH_VALUE == LPAREN) {
 
-       if (AT_OBJ_CLASS(attr_idx) == Data_Obj &&
-	   ATD_CLASS(attr_idx) == Struct_Component && AT_TYPED(attr_idx) &&
+       if (AT_OBJ_CLASS(attr_idx) == Data_Obj && AT_TYPED(attr_idx) &&
+	   (ATD_CLASS(attr_idx) == Struct_Component ||
+	    ATD_CLASS(attr_idx) == Variable) &&
 	   TYP_LINEAR(ATD_TYPE_IDX(attr_idx)) == Proc_Ptr) {
 
 	   /* Reference a function pointer call.  The Struct_Opr has
-	    * already been built.  Build a new nodea that will call it
+	    * already been built.  Build a new node that will call it
 	    * and replace the result with the new node. */
 
 	   NTR_IR_TBL(ir_idx);
 
 	   IR_OPR(ir_idx)   = Call_Opr;
-	   IR_FLD_L(ir_idx) = result_opnd->fld;
-	   IR_IDX_L(ir_idx) = result_opnd->idx;
+
+	   if (ATD_CLASS(attr_idx) == Variable) {
+	       IR_FLD_L(ir_idx) = AT_Tbl_Idx;
+	       IR_IDX_L(ir_idx) = ATD_PP_ATP(attr_idx);
+
+	   } else {
+	       IR_FLD_L(ir_idx) = result_opnd->fld;
+	       IR_IDX_L(ir_idx) = result_opnd->idx;
+	   }
 
 	   IR_LINE_NUM(ir_idx)   = TOKEN_LINE(token);
 	   IR_COL_NUM(ir_idx)    = TOKEN_COLUMN(token);

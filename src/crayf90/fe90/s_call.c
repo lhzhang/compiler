@@ -8507,8 +8507,16 @@ void flatten_function_call(opnd_type     *result)
                              0);
 
       if (tmp_idx) {
-         NTR_IR_TBL(asg_idx);
-         IR_OPR(asg_idx)           = Asg_Opr;
+	 NTR_IR_TBL(asg_idx);
+
+	 if (TYP_LINEAR(ATD_TYPE_IDX(attr_idx)) != Proc_Ptr) {
+	     IR_OPR(asg_idx) = Asg_Opr;
+
+	 } else {
+	     IR_OPR(asg_idx) = ProcPtr_Asg_Opr;
+	     ATD_PP_ATP(tmp_idx) = ATD_PP_ATP(attr_idx);
+	 }
+
          IR_TYPE_IDX(asg_idx)      = ATD_TYPE_IDX(attr_idx);
          IR_FLD_L(asg_idx)         = AT_Tbl_Idx;
          IR_IDX_L(asg_idx)         = tmp_idx;

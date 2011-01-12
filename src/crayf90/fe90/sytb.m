@@ -1439,6 +1439,8 @@
          ((AT_OBJ_CLASS(IDX) == Data_Obj &&				       \
 	   (attr_tbl[IDX].fld.secondary_info == Variable ||		       \
 	    attr_tbl[IDX].fld.secondary_info == Dummy_Argument ||	       \
+	    attr_tbl[IDX].fld.secondary_info == Function_Result ||	       \
+	    attr_tbl[IDX].fld.secondary_info == Compiler_Tmp ||		       \
 	    attr_tbl[IDX].fld.secondary_info == Struct_Component) &&	       \
 	   TYP_LINEAR(ATD_TYPE_IDX(IDX)) == Proc_Ptr) ?			       \
 	      attr_tbl : sytb_var_error("ATD_PP_ATP", IDX))		       \
@@ -2770,7 +2772,7 @@
 # ifdef _DEBUG
 # define ATP_PP_ABSTRACT(IDX)						       \
 	((AT_OBJ_CLASS(IDX) == Pgm_Unit) ?				       \
-		attr_tbl : sytb_var_error("ATP_PP_ABSTRACT", IDX))		       \
+		attr_tbl : sytb_var_error("ATP_PP_ABSTRACT", IDX))	       \
 		[IDX].fld.flag33
 # else
 # define ATP_PP_ABSTRACT(IDX)		attr_tbl[IDX].fld.flag33

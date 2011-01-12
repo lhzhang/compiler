@@ -445,10 +445,13 @@ static void procedure_pointer_semantics(int ir_idx)
      * The statement becomes a procedure pointer assignment because
      * the LHS was known to be a procedure pointer. */
 
-    if (r_opnd.fld == IR_Tbl_Idx)
+    if (r_opnd.fld == IR_Tbl_Idx) {
 	ok = pp_operand(&r_opnd);
 
-    else if (r_opnd.fld != AT_Tbl_Idx)
+	if (ok && IR_OPR(r_opnd.idx) == Call_Opr)
+	    ok = expr_semantics(&r_opnd, &exp_desc_r);
+
+    } else if (r_opnd.fld != AT_Tbl_Idx)
 	ok = 0;
 
     else

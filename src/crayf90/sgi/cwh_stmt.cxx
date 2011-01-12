@@ -2655,8 +2655,9 @@ fei_return(INT return_kind, TYPE dummy)
            (TY_kind(ty) == KIND_POINTER))
           ty = TY_pointed(ty);
 
-        if ((TY_kind(ty) == KIND_SCALAR ||
-             TY_kind(ty) == KIND_STRUCT) &&
+        if ((TY_kind(ty) == KIND_SCALAR || TY_kind(ty) == KIND_STRUCT ||
+	     (TY_kind(ty) == KIND_POINTER &&
+	      TY_kind(TY_pointed(ty)) == KIND_FUNCTION)) &&
             (! ST_auxst_is_rslt_tmp(st)) &&
             (! cwh_types_is_character(ty))) {
 
