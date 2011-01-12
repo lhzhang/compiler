@@ -5143,9 +5143,6 @@ EMT_Emit_PU (
   // initialize any new global sections:
   // We don't do this in EMT_Begin_File because may not have done
   // data layout at that point.
-#if 0 // for debug FAB
-  if (Assembly) fprintf( Asm_File, "## %s:%d before global syms\n", __FILE__, __LINE__ );
-#endif
   emit_global_symbols ();
 
   // emit global bss first so .org is correct
@@ -6583,7 +6580,7 @@ static void Print_Label (FILE *pfile, std::ostringstream *pstream, ST *st, INT64
 	EMT_Write_Qualified_Name(pfile, st);
 	fprintf ( pfile, ", %" SCNd64 "\n", size);
       } else if (MiniR_Code) 
-	*pstream << "    size: " << size << "\n";
+	*pstream << "    size: " << (unsigned) size << "\n";
     }
 #endif /* defined(BUILD_OS_DARWIN) */
 #ifdef TARG_ST
@@ -6638,6 +6635,11 @@ Print_Common (FILE *pfile, ST *st)
     objects_MINIR << "    align: " << TY_align(ST_type(st)) << "\n";
     //    fprintf(MiniR_File, "    section: .bss\n");
     objects_MINIR << "    attr: common\n";
+    fprintf(MiniR_File, "TBD: mn17 (redundant info?)\n");
+    EMT_Visibility (MiniR_File, NULL, ST_export(st), st);
+    fprintf ( MiniR_File, "\t%s\t", AS_COM);
+    EMT_Write_Qualified_Name(MiniR_File, st);
+    fprintf ( MiniR_File, ", %" SCNd64 "\n", TY_size(ST_type(st)));
     return;
   }
 
@@ -6755,6 +6757,7 @@ mINT32 EMT_Put_Elf_Symbol (ST *sym)
   if ( ! generate_elf_symbols) {
     // if only .s file, then just do dummy mark that we have
     // seen this symbol and emitted any type info for it.
+    // Functions emitted elsewhere for minir
     if (ST_class(sym) == CLASS_FUNC && !MiniR_Code
 #if defined(BUILD_OS_DARWIN)
 	&& 0 // Mach-O as 1.38 doesn't support .type
@@ -6913,12 +6916,14 @@ mINT32 EMT_Put_Elf_Symbol (ST *sym)
 #endif
 	  if (Assembly || MiniR_Code) {
 	    if (ST_is_weak_symbol(sym)) {
+	      if (MiniR_Code) fprintf(MiniR_File, "TBD: mn1\n");
 	      fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_WEAK);
 	      EMT_Write_Qualified_Name( MiniR_Code ? MiniR_File : Asm_File, sym);
 	      fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\n");
 	    }
 	    else {
 #ifdef TARG_ST
+	      if (MiniR_Code) fprintf(MiniR_File, "TBD: mn1\n");
 	      fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_GLOBAL);
 	      EMT_Write_Qualified_Name(MiniR_Code ? MiniR_File : Asm_File, sym);
 	      fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\n");
@@ -6989,12 +6994,14 @@ mINT32 EMT_Put_Elf_Symbol (ST *sym)
 			ST_name(sym), symbind, STT_FUNC, symother);
 	if (Assembly || MiniR_Code) {
 	  if (ST_is_weak_symbol(sym)) {
+	    if (MiniR_Code) fprintf(MiniR_File, "TBD: mn2\n");
 	    fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_WEAK);
 	    EMT_Write_Qualified_Name(MiniR_Code ? MiniR_File : Asm_File, sym);
 	    fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\n");
 	  }
 	  else {
 #ifdef TARG_ST
+	    if (MiniR_Code) fprintf(MiniR_File, "TBD: mn2\n");
 	    fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_GLOBAL);
 	    EMT_Write_Qualified_Name(MiniR_Code ? MiniR_File : Asm_File, sym);
 	    fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\n");
@@ -7006,12 +7013,12 @@ mINT32 EMT_Put_Elf_Symbol (ST *sym)
 		underscorify(ST_name(sym)));
 	    }
 #else /* defined(BUILD_OS_DARWIN) */
-	    fprintf(Asm_File, "\t%s\t%s\n", AS_GLOBAL, ST_name(sym));
+	    fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s\t%s\n", AS_GLOBAL, ST_name(sym));
 #endif /* defined(BUILD_OS_DARWIN) */
 #endif // TARG_ST
 	  }
 #ifdef TARG_ST
-	  EMT_Visibility (Asm_File, NULL, ST_export(sym), sym);
+	  EMT_Visibility (MiniR_Code ? MiniR_File : Asm_File, NULL, ST_export(sym), sym);
 #endif
 	}
       }
@@ -11253,6 +11260,7 @@ Write_Labdiff (
 
   for ( i = 0; i < repeat; i++ ) {
     if (Assembly || MiniR_Code) {
+      if (MiniR_Code) fprintf(MiniR_File, "TBD: mn3\n");
       fprintf (MiniR_Code ? MiniR_file : Output_File, "\t%s\t", (size == 2 ? AS_HALF : AS_WORD));
       fprintf((MiniR_Code ? MiniR_file : Output_File, "%s", LABEL_name(lab1));
       fprintf ((MiniR_Code ? MiniR_file : Output_File, "-");
@@ -11470,6 +11478,7 @@ Write_Symbol (
     INT32 padding;
     padding = repeat * address_size;
     if ((Assembly || MiniR_Code) && padding > 0) {
+      if (MiniR_Code) fprintf(MiniR_File, "TBD: mn4\n");
 #ifdef TARG_MIPS
       if (CG_emit_non_gas_syntax)
 	fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)padding);
@@ -11545,28 +11554,28 @@ Write_Symbol (
 	    fprintf (Asm_File, "\t%s\t", 
 		     (scn_ofst % address_size) == 0 ? 
 		     AS_ADDRESS : AS_ADDRESS_UNALIGNED);
-      if (ST_class(sym) == CLASS_CONST) {
+        if (ST_class(sym) == CLASS_CONST) {
 	  if (MiniR_Code)
-	    if (base_ofst)
-	      objects_MINIR << EMT_Get_Qualified_Name(basesym) << ", '" << std::showpos << base_ofst << "']\n";
-	    else 
-	      objects_MINIR << EMT_Get_Qualified_Name(basesym) << "]\n";
+	      objects_MINIR << ".LC" << ST_IDX_index(ST_st_idx(sym)) << "]\n";
 	  else {
 	    EMT_Write_Qualified_Name (Asm_File, basesym);
 	    fprintf (Asm_File, " %+" SCNd64 "\n", base_ofst);
 	  }
 	}
 	else if (ST_class(sym) == CLASS_FUNC && fptr) {
+        	if (MiniR_Code) fprintf(MiniR_File, "TBD: mn5\n");
 		fprintf (MiniR_Code ? MiniR_File : Asm_File, " %s(", fptr);
 		EMT_Write_Qualified_Name (MiniR_Code ? MiniR_File : Asm_File, sym);
 		fprintf (MiniR_Code ? MiniR_File : Asm_File, " %+" SCNd64 ")\n", sym_ofst);
 	}
 	else {
-		if (MiniR_Code)
+	        if (MiniR_Code) {
+		  if (MiniR_Code) fprintf(MiniR_File, "TBD: mn5\n");
 		  if (sym_ofst)
 		    objects_MINIR << EMT_Get_Qualified_Name(basesym) << ", '" << std::showpos << sym_ofst << "']\n";
 		  else 
 		    objects_MINIR << EMT_Get_Qualified_Name(basesym) << "]\n";
+	        }
 		else if (Assembly) {
 		  EMT_Write_Qualified_Name (Asm_File, sym);
 		  fprintf (Asm_File, " %+" SCNd64 "\n", sym_ofst);
@@ -11576,6 +11585,7 @@ Write_Symbol (
 	// [SC] Make sure the weak attribute is emitted, in case
 	// this is the only reference to the symbol.
 	if (ST_is_weak_symbol(sym)) {
+	  if (MiniR_Code) fprintf(MiniR_File, "TBD: mn5\n");
 	  fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_WEAK);
 	  EMT_Write_Qualified_Name(MiniR_Code ? MiniR_File : Asm_File, sym);
 	  fprintf(MiniR_Code ? MiniR_File : Asm_File, "\n");
@@ -11589,6 +11599,7 @@ Write_Symbol (
 	&& !CG_emit_non_gas_syntax
 #endif
 		) {
+        	if (MiniR_Code) fprintf(MiniR_File, "TBD: mn6\n");
 		fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_TYPE);
 		EMT_Write_Qualified_Name (MiniR_Code ? MiniR_File : Asm_File, sym);
 		fprintf (MiniR_Code ? MiniR_File : Asm_File, ", %s\n", AS_TYPE_FUNC);
@@ -11642,6 +11653,7 @@ Write_Label (
     INT32 padding;
     padding = repeat * address_size;
     if ((Assembly || MiniR_Code) && padding > 0) {
+      if (MiniR_Code) fprintf(MiniR_File, "TBD: mn7\n");
 #ifdef TARG_MIPS
       if (CG_emit_non_gas_syntax)
 	fprintf(Minir_Code ? MiniR_File : Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)padding);
@@ -11678,6 +11690,7 @@ Write_Label (
 
   for ( i = 0; i < repeat; i++ ) {
     if (Assembly || MiniR_Code) {
+        if (MiniR_Code) fprintf(MiniR_File, "TBD: mn8\n");
 #ifdef TARG_MIPS
 	if (CG_emit_non_gas_syntax)
 	  fprintf(Minir_Code ? MiniR_File : Asm_File, "\t%s\t", Use_32_Bit_Pointers ? ".word" : ".dword");
@@ -11769,6 +11782,7 @@ Write_Symdiff (
 #endif
   for ( i = 0; i < repeat; i++ ) {
     if (Assembly || MiniR_Code) {
+      if (MiniR_Code) fprintf(MiniR_File, "TBD: mn9\n");
 #ifdef KEY
       if (etable)
       	fputs ("\t.uleb128\t", MiniR_Code ? MiniR_File : Asm_File);
@@ -12123,6 +12137,9 @@ Write_INITO (
         bool action_table_started = false;
 	bool type_label_emitted = false;
 #endif // KEY
+	if (INITO_val(ino) && MiniR_Code) {
+	      objects_MINIR << "    init:\n";
+	}	  
 	FOREACH_INITV (INITO_val(ino), inv) {
 #ifdef KEY
             if (range_table && !action_table_started &&
@@ -12204,6 +12221,7 @@ Write_Diff (
   INT scn_idx,          /* Section to emit it in */
   Elf64_Word scn_ofst)  /* Section offset to emit it at */
 {
+      if (MiniR_Code) fprintf(MiniR_File, "TBD: mn10\n");
       fputs ("\t.uleb128\t", MiniR_Code ? MiniR_File : Asm_File);
       fputs (LABEL_name(lab1), MiniR_Code ? MiniR_File : Asm_File);
       fputc ('-', MiniR_Code ? MiniR_File : Asm_File);
@@ -12557,7 +12575,7 @@ Process_Initos_And_Literals (
       // may need padding between objects in same section,
       // so always change origin
       Change_Section_Origin (base, ofst);
-      if (!MiniR_Code) // alignment dumped in write_inito
+      if (!MiniR_Code) { // alignment dumped in write_inito
 #ifdef KEY
 	if (CG_file_scope_asm_seen &&
 	    TY_align (ST_type (st)) > 1)
@@ -12570,11 +12588,13 @@ Process_Initos_And_Literals (
 		   );
 	else
 	  fprintf ( Asm_File, "\t%s\t0\n", AS_ALIGN );
+      }
 #endif
-      Write_INITO (ino, STB_scninfo_idx(base), ofst);
 #ifdef TARG_ST
       ofst = Write_INITO (ino, STB_scninfo_idx(base), ofst);
       Set_Section_Offset(base, ofst);
+#else
+      Write_INITO (ino, STB_scninfo_idx(base), ofst);
 #endif      
     }
 
@@ -12594,111 +12614,127 @@ Process_Initos_And_Literals (
 	  TCON_str_len(ST_tcon_val(st)) != 0)
 #endif
       Change_Section_Origin (base, ofst);
-#ifdef KEY
-      if (CG_file_scope_asm_seen &&
-          TY_align (ST_type (st)) > 1)
-        fprintf( MiniR_Code ? MiniR_File : Asm_File, "\t%s\t%d\n", AS_ALIGN, 
-#if defined(BUILD_OS_DARWIN)
-                 logtwo (TY_align (ST_type (st)))
-#else /* defined(BUILD_OS_DARWIN) */
-                 TY_align (ST_type (st))
-#endif /* defined(BUILD_OS_DARWIN) */
-               );
-      else
-        fprintf ( MiniR_Code ? MiniR_File : Asm_File, "\t%s\t0\n", AS_ALIGN );
+      UINT32 align = 0;	
+      BOOL isglobal = Emit_Global_Data != NULL;
+      const char *visibility;
+      BOOL moveable = TRUE;
+#ifdef AS_USED
+      BOOL isused = ST_is_used(st);
 #endif
-
+      int size = 0;
+      // comute align
+      if (CG_file_scope_asm_seen &&
+	  TY_align (ST_type (st)) > 1) {
+#if defined(BUILD_OS_DARWIN)
+	align = logtwo (TY_align (ST_type (st)));
+#else /* defined(BUILD_OS_DARWIN) */
+	align = TY_align (ST_type (st));
+#endif /* defined(BUILD_OS_DARWIN) */
+      }
+      // compute linkage, visibility & moveable
+      if (isglobal && ST_export(st) == EXPORT_LOCAL_INTERNAL)
+	visibility = MiniR_Code ? "internal" : AS_INTERNAL;
+      else 
+	visibility = MiniR_Code ? "hidden" : AS_HIDDEN;
+#ifdef AS_MOVEABLE
+      if (Emit_Global_Data)  //ipa
+	moveable = FALSE;
+      else if (ST_is_initialized (st)) {
+	/* [SC]: Not moveable if initializer is larger than symbol size */
+	INITV_IDX inito_idx = ST_has_inito (st);
+	if (inito_idx != 0 && Get_INITO_Size (inito_idx) > TY_size(ST_type(st)))
+	  moveable = FALSE;
+	else
+	  moveable = TRUE;
+      }
+#endif
+      // compute size
+      {
+	TCON tcon = ST_tcon_val(st);
+	BOOL add_null = TCON_add_null(tcon);
+	if ( TCON_ty(tcon) == MTYPE_STRING )
+	  size = (Targ_String_Length (tcon) + (add_null ? 1 : 0));
+	else
+	  size = TY_size(Be_Type_Tbl(TCON_ty(tcon)));
+      }
+      // Dump in Assembly
+      if (Assembly) {
+#ifdef KEY
+      fprintf( Asm_File, "\t%s\t%d\n", AS_ALIGN, align);
+#endif
 #ifdef TARG_ST
       // [CL] handle the case of generation of symtab.s
       // in IPA mode. Although local, such symbols must
       // be 'promoted' to global so that they can be
       // accessed by the module they belong to
-      if (Emit_Global_Data) {
-	fprintf(Output_File, "\t%s\t", AS_GLOBAL);
-	EMT_Write_Qualified_Tcon_Name(Output_File, st);
-	fprintf(Output_File, "\n");
-	// [CL] output as hidden/internal so that we are close to the
-	// export_local meaning
-#ifdef AS_INTERNAL
-	if (ST_export(st) == EXPORT_LOCAL_INTERNAL) {
-	  fprintf (Output_File, "\t%s\t", AS_INTERNAL);
+	if (isglobal) {
+	  fprintf(Output_File, "\t%s\t", AS_GLOBAL);
 	  EMT_Write_Qualified_Tcon_Name(Output_File, st);
 	  fprintf(Output_File, "\n");
-	} else
-#endif
-#ifdef AS_HIDDEN
-	  {
-	    fprintf (Output_File, "\t%s\t", AS_HIDDEN);
-	    EMT_Write_Qualified_Tcon_Name(Output_File, st);
-	    fprintf(Output_File, "\n");
-	  }
-#endif
-      }
-      fprintf (Output_File, "\t%s\t", AS_TYPE);
-      EMT_Write_Qualified_Tcon_Name (Output_File, st);
+	  // [CL] output as hidden/internal so that we are close to the
+	  // export_local meaning
+	  fprintf (Output_File, "\t%s\t", visibility);
+	  EMT_Write_Qualified_Tcon_Name(Output_File, st);
+	  fprintf(Output_File, "\n");
+	}
+	fprintf (Output_File, "\t%s\t", AS_TYPE);
+	EMT_Write_Qualified_Tcon_Name (Output_File, st);
 #  ifdef AS_MOVEABLE
-      BOOL moveable;
-      int size = TY_size(ST_type(st));
-      
-      if (Emit_Global_Data) {
-	/* TB: Tell this symbol is moveable when not in Emit_Global_Data (ipa) */
-	moveable = FALSE;
-      }
-      else if (ST_is_initialized (st)) {
-	/* [SC]: Not moveable if initializer is larger than symbol size */
-	INITV_IDX inito_idx = ST_has_inito (st);
-	if (inito_idx != 0 && Get_INITO_Size (inito_idx) > size)
-	  moveable = FALSE;
-      else
-	  moveable = TRUE;
-      }
-      else {
-	moveable = TRUE;
-      }
-
-      fprintf (Output_File, ", %s", AS_TYPE_OBJECT);
-      if (moveable) {
-	fprintf (Output_File, ", %s", AS_MOVEABLE);
-      }
+	fprintf (Output_File, ", %s", AS_TYPE_OBJECT);
+	if (moveable) 
+	  fprintf (Output_File, ", %s", AS_MOVEABLE);
 #  ifdef AS_USED
       /* TB: add gnu used  attibute when needed */
-      if (ST_is_used(st)) {
-	fprintf (Output_File, ", %s", AS_USED);
-      }
+	if (isused) 
+	  fprintf (Output_File, ", %s", AS_USED);
 #endif
-      fprintf (Output_File, "\n");
+	fprintf (Output_File, "\n");
 #  else //AS_MOVEABLE
-      fprintf (Output_File, ", %s\n", AS_TYPE_OBJECT);
-#endif
+	fprintf (Output_File, ", %s\n", AS_TYPE_OBJECT);
+#endif //AS_MOVEABLE
 #ifdef AS_SIZE
-      {
-	TCON tcon = ST_tcon_val(st);
-	BOOL add_null = TCON_add_null(tcon);
-	int size = 0;
-	if ( TCON_ty(tcon) == MTYPE_STRING )
-	  size = (Targ_String_Length (tcon) + (add_null ? 1 : 0));
-	else
-	  size = TY_size(Be_Type_Tbl(TCON_ty(tcon)));
 	if (size != 0) {
 	  /* if size is given, then emit value for asm */
 	  fprintf (Output_File, "\t%s\t", AS_SIZE);
 	  EMT_Write_Qualified_Tcon_Name(Output_File, st);
 	  fprintf (Output_File, ", %d\n", size);
-    }
-  }
-#endif
-      EMT_Write_Qualified_Tcon_Name(Output_File, st);
-      fprintf(Output_File, ":\n");
+	}
+#endif //AS_SIZE
+	EMT_Write_Qualified_Tcon_Name(Output_File, st);
+	fprintf(Output_File, ":\n");
 #else //Not TARG_ST
 #ifdef KEY
 #ifdef TARG_X8664 // limit to x86_64 for now
-      if (!Emit_Global_Data) // not for symbols in ipa symtab
-        fprintf ( MiniR_Code ? MiniR_File : Asm_File, TCON_Label_Format ":\n",
-                  ST_IDX_index(ST_st_idx(st)) );
-#endif  
+	if (!Emit_Global_Data) { // not for symbols in ipa symtab
+	  fprintf ( MiniR_Code ? MiniR_File : Asm_File, TCON_Label_Format ":\n",
+		    ST_IDX_index(ST_st_idx(st)) );
+	}
+#endif //TARG_X8664
+#endif //KEY
+#endif //TARG_ST
+	ofst = Write_TCON (&ST_tcon_val(st), STB_scninfo_idx(base), ofst, 1);
+      } 
+      else if (MiniR_Code) {
+	TCON *tc=&ST_tcon_val(st);
+	objects_MINIR << "  - label: .LC" << ST_IDX_index(ST_st_idx(st)) << "\n";
+	if (isglobal) {
+	  objects_MINIR << "    linkage: global\n" ;
+	  objects_MINIR << "    visibility: " << visibility << "\n";
+	}
+	objects_MINIR << "    align: " << align << "\n";
+#ifdef AS_MOVEABLE
+	objects_MINIR << "    moveable: " << moveable ? "yes\n" : "no\n";
 #endif
+#ifdef AS_USED
+	objects_MINIR << "    used: " << isused ? "yes\n" : "no\n";
 #endif
-      ofst = Write_TCON (&ST_tcon_val(st), STB_scninfo_idx(base), ofst, 1);
+	objects_MINIR << "    section: " << ST_name(base) << "\n";
+	objects_MINIR << "    size: " << (unsigned) size << "\n";
+	objects_MINIR << "    init:\n";
+	objects_MINIR << "      - " << Mtype_String(TCON_ty(*tc)) << ": " << Targ_Print (NULL, *tc) << "\n";
+	ofst = size;
+      }
+      
 #ifdef TARG_ST
       Set_Section_Offset(base, ofst);
 #endif
@@ -12853,7 +12889,7 @@ Process_Bss_Data (SYMTAB_IDX stab)
 #ifdef TARG_X8664
 	// Fix bug 617
 	// Do not emit .org for any symbols with section attributes.
-	if (Assembly) {
+	if (Assembly) { // dump section & alignment info
 	  ST* tmp_base = sym;
 	  BOOL has_named_section = FALSE;
 	  if ( ST_base(tmp_base) == base && ST_has_named_section (tmp_base)) {
@@ -13718,6 +13754,7 @@ MINIR_Dump_PU( ST *pu, DST_IDX pu_dst, WN *rwn )
 		if (ST_assigned_to_dedicated_preg(sym)) continue;
 		if (ST_elf_index(sym)==0) { //EMT_Put_Elf_Symbol 
 		  if (ST_class(sym) == CLASS_FUNC) {
+		    if (MiniR_Code) fprintf(MiniR_File, "TBD: mn12\n");
 		    fprintf (MiniR_File, "\t%s\t", AS_TYPE);
 		    EMT_Write_Qualified_Name (MiniR_File, sym);
 		    fprintf (MiniR_File, ", %s\n", AS_TYPE_FUNC);
@@ -13750,7 +13787,7 @@ MINIR_Dump_PU( ST *pu, DST_IDX pu_dst, WN *rwn )
 
   Print_Label(NULL, &functions_MINIR, pu, 0);
   pfx = "    ";
-#  ifdef AS_USED
+#ifdef AS_USED
   functions_MINIR << pfx << "used: " << (ST_is_used(pu) ? "yes\n" : "no\n"); 
 #endif
   functions_MINIR << pfx << "entries: [";
@@ -13773,6 +13810,7 @@ MINIR_Dump_PU( ST *pu, DST_IDX pu_dst, WN *rwn )
   functions_MINIR << "]\n";
   if (cur_section != PU_base) {
     /* reset to text section */
+    if (MiniR_Code) fprintf(MiniR_File, "TBD: mn13\n");
     fprintf (MiniR_File, "%s\n\t%s %s\n", pfx, AS_SECTION, ST_name(PU_base));
     cur_section = PU_base;
   }
@@ -13787,6 +13825,7 @@ MINIR_Dump_PU( ST *pu, DST_IDX pu_dst, WN *rwn )
 	ST_sclass(sym) == SCLASS_EXTERN && 
 	! ST_is_export_local(sym)) 
     { 
+      if (MiniR_Code) fprintf(MiniR_File, "TBD: mn14\n");
       fprintf (MiniR_File, "%s%s\t %s\n", pfx, AS_GLOBAL, ST_name(sym)); 
     }
 
@@ -13794,8 +13833,6 @@ MINIR_Dump_PU( ST *pu, DST_IDX pu_dst, WN *rwn )
       if (Has_Base_Block(sym)) {
 	INT64 ofst;
 	Base_Symbol_And_Offset(sym, &base, &ofst);
-	fprintf ( MiniR_File, "\t%s %s = %" SCNd64 "\n",
-		  ASM_CMNT, ST_name(sym), ofst);
       }
     }
   }
@@ -14344,7 +14381,6 @@ EMT_End_File( void )
 #else /* defined(BUILD_OS_DARWIN) */
 		    newname;
 #endif /* defined(BUILD_OS_DARWIN) */
-
 		  Change_Section_Origin (sym, 0);
 #ifdef KEY
 		  // TODO: Handle CG_file_scope_asm_seen
