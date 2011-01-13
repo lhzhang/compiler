@@ -11654,12 +11654,16 @@ Write_Label (
     padding = repeat * address_size;
     if ((Assembly || MiniR_Code) && padding > 0) {
       if (MiniR_Code) fprintf(MiniR_File, "TBD: mn7\n");
+      if (MiniR_Code)
+	  objects_MINIR << "      - space: " << (INT64)padding << "\n";
+      else {
 #ifdef TARG_MIPS
-      if (CG_emit_non_gas_syntax)
-	fprintf(Minir_Code ? MiniR_File : Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)padding);
-      else
+	if (CG_emit_non_gas_syntax)
+	  fprintf( Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)padding);
+	else
 #endif
-      ASM_DIR_ZERO(Minir_Code ? MiniR_File : Asm_File, padding);
+	  ASM_DIR_ZERO(Minir_Code ? MiniR_File : Asm_File, padding);
+      }
     }
     if (Object_Code) {
       Em_Add_Zeros_To_Scn (scn, padding, 1);
@@ -11690,19 +11694,30 @@ Write_Label (
 
   for ( i = 0; i < repeat; i++ ) {
     if (Assembly || MiniR_Code) {
-        if (MiniR_Code) fprintf(MiniR_File, "TBD: mn8\n");
 #ifdef TARG_MIPS
 	if (CG_emit_non_gas_syntax)
-	  fprintf(Minir_Code ? MiniR_File : Asm_File, "\t%s\t", Use_32_Bit_Pointers ? ".word" : ".dword");
+	  if (MiniR_Code)
+	    objects_MINIR << "      - " << Mtype_String(AsmType_Mtype(Use_32_Bit_Pointers ? ".word" : ".dword")) << ": [";
+	  else 
+	    fprintf(Asm_File, "\t%s\t", Use_32_Bit_Pointers ? ".word" : ".dword");
 	else
 #endif
-	fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", 
-		(scn_ofst % address_size) == 0 ? 
-		AS_ADDRESS : AS_ADDRESS_UNALIGNED);
-	fputs (LABEL_name(lab), MiniR_Code ? MiniR_File : Asm_File);
-	if (lab_ofst != 0)
-		fprintf (MiniR_Code ? MiniR_File : Asm_File, " %+" SCNd64 , lab_ofst);
-	fputc ('\n', MiniR_Code ? MiniR_File : Asm_File);
+	  if (MiniR_Code) 
+	    objects_MINIR << "      - " << Mtype_String(AsmType_Mtype((scn_ofst % address_size) == 0 ? AS_ADDRESS : AS_ADDRESS_UNALIGNED)) << ": [";
+	  else 
+	    fprintf (Asm_File, "\t%s\t", 
+		     (scn_ofst % address_size) == 0 ? 
+		     AS_ADDRESS : AS_ADDRESS_UNALIGNED);
+	if (lab_ofst) 
+	  if (MiniR_Code)
+	    objects_MINIR << LABEL_name(lab) << ", '" << std::showpos << lab_ofst << "']\n";
+	  else
+	    fprintf (Asm_File, " %s %+" SCNd64 "\n", LABEL_name(lab), lab_ofst);
+	else 
+	  if (MiniR_Code)
+	    objects_MINIR << LABEL_name(lab) << "]\n";
+	  else 
+	    fprintf (Asm_File, " %s\n", LABEL_name(lab));
     } 
     if (Object_Code) {
     	Em_Add_Address_To_Scn (scn, EMT_Put_Elf_Symbol (basesym), base_ofst, 1);
@@ -12146,7 +12161,7 @@ Write_INITO (
                   (INITV_flags (Initv_Table[inv]) == INITVFLAGS_ACTION_REC))
             {
                 action_table_started = true;
-		if (Assembly)
+		if (Assembly) // EH not handled in MiniR
 		  fprintf ( Asm_File, "%s:\n", LABEL_name(labels[0]));
 #ifdef TARG_ST
 		Set_LABEL_emitted(labels[0]);
@@ -12156,14 +12171,12 @@ Write_INITO (
 	    	INITV_flags(Initv_Table[inv]) == INITVFLAGS_EH_SPEC)
 	    {
 	    	type_label_emitted = true;
-		if (Assembly)
+		if (Assembly) // EH not handled in MiniR
 		  fprintf ( Asm_File, "%s:\n", LABEL_name(labels[1]));
 #ifdef TARG_ST
 		Set_LABEL_emitted(labels[1]);
 #endif
 	    }
-	    if (MiniR_Code)
-	      objects_MINIR << "    init:\n";
             scn_ofst = Write_INITV (inv, scn_idx, scn_ofst, range_table,
 	    		range_table ? INITV_flags (Initv_Table[inv]) : 0);
 	    if (range_table && !type_label_emitted)
@@ -12176,7 +12189,7 @@ Write_INITO (
 			!INITV_flags(Initv_Table[INITV_next(inv)])))
 	    	{
 	    	    type_label_emitted = true;
-		if (Assembly) 
+		if (Assembly) // EH not handled in MiniR
             	    fprintf (Asm_File, "%s:\n", LABEL_name(labels[1]));
 #ifdef TARG_ST
 		Set_LABEL_emitted(labels[1]);
@@ -12184,14 +12197,12 @@ Write_INITO (
 	    	}
 	    }
 #else
-	    if (MiniR_Code)
-	      objects_MINIR << "    init:\n";
 	    scn_ofst = Write_INITV (inv, scn_idx, scn_ofst);
 #endif // KEY
         }
 #ifdef KEY
         if (range_table && !type_label_emitted) {
-	  if (Assembly)
+	  if (Assembly) // EH not handled in MiniR
 	    fprintf ( Asm_File, "%s:\n", LABEL_name(labels[1]));
 #ifdef TARG_ST
 	  Set_LABEL_emitted(labels[1]);
@@ -12200,7 +12211,7 @@ Write_INITO (
 #endif // KEY
 #ifdef TARG_ST
 	if (range_table && !action_table_started) {
-	  if (Assembly)
+	  if (Assembly) // EH not handled in MiniR
 	    fprintf ( Asm_File, "%s:\n", LABEL_name(labels[0]));
 	  Set_LABEL_emitted(labels[0]);
 	}
