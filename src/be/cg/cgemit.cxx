@@ -6518,11 +6518,15 @@ static void Print_Label (FILE *pfile, std::ostringstream *pstream, ST *st, INT64
 	// Bug 1275 and 4351
 	// Always emit the function type
 	// But Mach-O as 1.38 doesn't support .type
-	if (ST_class(st) == CLASS_FUNC && Assembly) {
-	  fprintf ( pfile, "\t%s\t", AS_TYPE);
-	  EMT_Write_Qualified_Name(pfile, st);
-	  fprintf ( pfile, ", %s\n", AS_TYPE_FUNC);
-	}
+    if (ST_class(st) == CLASS_FUNC) {
+      if (MiniR_Code) 
+	0; // type provided by the section in which the label is dump
+      else {
+	fprintf ( pfile, "\t%s\t", AS_TYPE);
+	EMT_Write_Qualified_Name(pfile, st);
+	fprintf ( pfile, ", %s\n", AS_TYPE_FUNC);
+      }
+    }
 #endif
     if (ST_class(st) == CLASS_VAR
 #if defined(BUILD_OS_DARWIN)
@@ -6531,9 +6535,13 @@ static void Print_Label (FILE *pfile, std::ostringstream *pstream, ST *st, INT64
 #ifdef TARG_MIPS
 	&& !CG_emit_non_gas_syntax
 #endif
-	&& Assembly ) {
-    	fprintf (pfile, "\t%s\t", AS_TYPE);
-    	EMT_Write_Qualified_Name (pfile, st);
+	) {
+	  if (MiniR_Code)
+	    0; // type provided by the section in which the label is dump
+	  else {
+	    fprintf (pfile, "\t%s\t", AS_TYPE);
+	    EMT_Write_Qualified_Name (pfile, st);
+	  } 
 #ifdef TARG_ST
 #  ifdef AS_MOVEABLE
 	BOOL moveable;
@@ -6555,14 +6563,16 @@ static void Print_Label (FILE *pfile, std::ostringstream *pstream, ST *st, INT64
 	}
 	
 	if (Assembly) fprintf (pfile, ", %s", AS_TYPE_OBJECT);
-	if (moveable && Assembly) {
+	if (moveable && Assembly) 
 	  fprintf (pfile, ", %s", AS_MOVEABLE);
-	}
+	if (MiniR_Code) 
+	  *pstream << "    moveable: " << moveable? "yes\n" : "no\n";
 #  ifdef AS_USED
 	/* TB: add gnu used  attibute when needed */
 	if (ST_is_used(st) && Assembly) {
 	  fprintf (pfile, ", %s", AS_USED);
 	}
+	*pstream << "    used: " << ST_is_used(st)? "yes\n" : "no\n";
 #endif
 	if (Assembly) fprintf (pfile, "\n");
 #  else //AS_MOVEABLE
@@ -6635,11 +6645,8 @@ Print_Common (FILE *pfile, ST *st)
     objects_MINIR << "    align: " << TY_align(ST_type(st)) << "\n";
     //    fprintf(MiniR_File, "    section: .bss\n");
     objects_MINIR << "    attr: common\n";
-    fprintf(MiniR_File, "TBD: mn17 (redundant info?)\n");
-    EMT_Visibility (MiniR_File, NULL, ST_export(st), st);
-    fprintf ( MiniR_File, "\t%s\t", AS_COM);
-    EMT_Write_Qualified_Name(MiniR_File, st);
-    fprintf ( MiniR_File, ", %" SCNd64 "\n", TY_size(ST_type(st)));
+    // size dumped elsewhere
+    // don't dump moveable & used (optional and probably only supported by TARG_ST)
     return;
   }
 
@@ -11570,7 +11577,6 @@ Write_Symbol (
 	}
 	else {
 	        if (MiniR_Code) {
-		  if (MiniR_Code) fprintf(MiniR_File, "TBD: mn5\n");
 		  if (sym_ofst)
 		    objects_MINIR << EMT_Get_Qualified_Name(basesym) << ", '" << std::showpos << sym_ofst << "']\n";
 		  else 
@@ -11598,11 +11604,10 @@ Write_Symbol (
 #ifdef TARG_MIPS
 	&& !CG_emit_non_gas_syntax
 #endif
-		) {
-        	if (MiniR_Code) fprintf(MiniR_File, "TBD: mn6\n");
-		fprintf (MiniR_Code ? MiniR_File : Asm_File, "\t%s\t", AS_TYPE);
-		EMT_Write_Qualified_Name (MiniR_Code ? MiniR_File : Asm_File, sym);
-		fprintf (MiniR_Code ? MiniR_File : Asm_File, ", %s\n", AS_TYPE_FUNC);
+	    && Assembly ) { // type seems optional (gcc does not dump it)
+		fprintf ( Asm_File, "\t%s\t", AS_TYPE);
+		EMT_Write_Qualified_Name ( Asm_File, sym);
+		fprintf ( Asm_File, ", %s\n", AS_TYPE_FUNC);
 	}
     } 
     scn_ofst += address_size;
