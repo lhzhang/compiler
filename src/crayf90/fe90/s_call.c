@@ -13412,6 +13412,10 @@ static boolean compare_darg_to_actual_arg(int		gen_idx,
 
    switch (AT_OBJ_CLASS(arg_attr)) {
    case Data_Obj:
+      if (strcmp(AT_OBJ_NAME_PTR(gen_idx), "ASSOCIATED") == 0 &&
+	  strcmp(AT_OBJ_NAME_PTR(arg_attr), "TARGET") == 0)
+	  return TRUE;
+
 #ifdef KEY
       if (pgm_unit && strcmp(AT_OBJ_NAME_PTR(gen_idx), "SIGNAL") != 0)
 #else

@@ -18667,6 +18667,60 @@ void    move_alloc_intrinsic(opnd_type     *result_opnd,
 |*                                                                            *|
 \******************************************************************************/
 
+
+static void pp_associated_intrinsic(opnd_type      *result_opnd,
+				    expr_arg_type  *res_exp_desc,
+				    int     ptr_idx,
+				    int     target_idx)
+{
+    opnd_type op1, op2;
+    int line, col;
+    int a, b, ir_idx;
+
+    ir_idx = OPND_IDX((*result_opnd));
+    line = IR_LINE_NUM(ir_idx);
+    col = IR_COL_NUM(ir_idx);
+
+    COPY_OPND(op1, IL_OPND(ptr_idx));
+    COPY_OPND(op2, IL_OPND(target_idx));
+
+    if (target_idx == NULL_IDX) {
+	/* TARGET not present */
+
+	ir_idx = gen_ir(OPND_FLD(op1), OPND_IDX(op1),
+			Ne_Opr, LOGICAL_DEFAULT_TYPE, line, col,
+			CN_Tbl_Idx, CN_INTEGER_ZERO_IDX);
+
+    } else if (op2.fld == AT_Tbl_Idx && AT_OBJ_CLASS(op2.idx) == Pgm_Unit) {
+	/* TARGET is an external procedure */
+
+	ir_idx = gen_ir(OPND_FLD(op1), OPND_IDX(op1),
+			Eq_Opr, LOGICAL_DEFAULT_TYPE, line, col,
+			OPND_FLD(op2), OPND_IDX(op2));
+
+    } else {
+	/* TARGET is another pp variable, which cannot be NULL */
+
+	a = gen_ir(OPND_FLD(op2), OPND_IDX(op2),
+		   Ne_Opr, LOGICAL_DEFAULT_TYPE, line, col,
+		   CN_Tbl_Idx, CN_INTEGER_ZERO_IDX);
+
+	b = gen_ir(OPND_FLD(op1), OPND_IDX(op1),
+		   Eq_Opr, LOGICAL_DEFAULT_TYPE, line, col,
+		   OPND_FLD(op2), OPND_IDX(op2));
+
+	ir_idx = gen_ir(IR_Tbl_Idx, a,
+			And_Opr, LOGICAL_DEFAULT_TYPE, line, col,
+			IR_Tbl_Idx, b);
+    }
+
+    OPND_FLD((*result_opnd)) = IR_Tbl_Idx;
+    OPND_IDX((*result_opnd)) = ir_idx;
+
+    res_exp_desc->rank = 0;
+}
+
+
 void    associated_intrinsic(opnd_type     *result_opnd,
                              expr_arg_type *res_exp_desc,
                              int           *spec_idx)
@@ -18698,6 +18752,13 @@ void    associated_intrinsic(opnd_type     *result_opnd,
                  res_exp_desc,
                  spec_idx,
                  FALSE);
+
+   if (arg_info_list[info_idx1].ed.linear_type == Proc_Ptr) {
+       pp_associated_intrinsic(result_opnd, res_exp_desc,
+			       list_idx1, list_idx2);
+       ATP_EXTERNAL_INTRIN(*spec_idx) = FALSE;
+       return;
+   }
 
    if (!arg_info_list[info_idx1].ed.pointer) {
       PRINTMSG(arg_info_list[info_idx1].line, 784, Error,

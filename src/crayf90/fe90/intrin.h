@@ -59,6 +59,8 @@
 # define X_MASK                (1<<Structure_Type)
 # define c_MASK                (1<<Short_Char_Const)
 
+# define PP_MASK               (1<<Proc_Ptr)
+
 # define TYPELESS_MASK         (1<<Typeless_1|1<<Typeless_2|                  \
                                 1<<Typeless_4|1<<Typeless_8|                  \
                                 1<<Short_Typeless_Const)
@@ -1019,9 +1021,9 @@ intrin_tbl_type         intrin_tbl[] =
       {"X",1,0,0,0,0,0,0,0,0,0,0,REAL_MASK,0},
 {"ASSOCIATED",10,0,1,0,1,0,0,1,0,144,0,0,ANSI_FAMILY|TRADITIONAL_FAMILY|PGI_FAMILY},
    {"_ASSOCIATED_4",13,0,1,0,1,0,0,0,0,0,Associated_Intrinsic,0,0},
-      {"POINTER",7,0,0,0,0,0,1,0,0,0,0,ALL_MASK,0},
+      {"POINTER",7,0,0,0,0,0,1,0,0,0,0,ALL_MASK|PP_MASK,0},
    {"_ASSOCIATED_8",13,0,1,0,1,0,0,0,0,0,Associated_Intrinsic,0,0},
-      {"POINTER",7,0,0,0,0,0,1,0,0,0,0,ALL_MASK,0},
+      {"POINTER",7,0,0,0,0,0,1,0,0,0,0,ALL_MASK|PP_MASK,0},
    {"_ASSOCIATED_4",13,0,1,0,1,0,0,0,0,0,Associated_Intrinsic,0,0},
       {"POINTER",7,0,0,0,0,0,1,0,0,1,0,ALL_MASK,0},
    {"_ASSOCIATED_8",13,0,1,0,1,0,0,0,0,0,Associated_Intrinsic,0,0},
@@ -1051,11 +1053,11 @@ intrin_tbl_type         intrin_tbl[] =
    {"_ASSOCIATED_8",13,0,1,0,1,0,0,0,0,0,Associated_Intrinsic,0,0},
       {"POINTER",7,0,0,0,0,0,1,0,0,7,0,ALL_MASK,0},
    {"_ASSOCIATED_4",13,0,1,0,1,0,0,0,0,0,Associated_Intrinsic,0,0},
-      {"POINTER",7,0,0,0,0,0,1,0,0,0,0,ALL_MASK,0},
-      {"TARGET",6,0,0,0,0,0,1,0,0,0,0,ALL_MASK,0},
+      {"POINTER",7,0,0,0,0,0,1,0,0,0,0,ALL_MASK|PP_MASK,0},
+      {"TARGET",6,0,0,0,0,0,1,0,0,0,0,ALL_MASK|PP_MASK,0},
    {"_ASSOCIATED_8",13,0,1,0,1,0,0,0,0,0,Associated_Intrinsic,0,0},
-      {"POINTER",7,0,0,0,0,0,1,0,0,0,0,ALL_MASK,0},
-      {"TARGET",6,0,0,0,0,0,1,0,0,0,0,ALL_MASK,0},
+      {"POINTER",7,0,0,0,0,0,1,0,0,0,0,ALL_MASK|PP_MASK,0},
+      {"TARGET",6,0,0,0,0,0,1,0,0,0,0,ALL_MASK|PP_MASK,0},
    {"_ASSOCIATED_4",13,0,1,0,1,0,0,0,0,0,Associated_Intrinsic,0,0},
       {"POINTER",7,0,0,0,0,0,1,0,0,1,0,ALL_MASK,0},
       {"TARGET",6,0,0,0,0,0,1,0,0,0,0,ALL_MASK,0},
