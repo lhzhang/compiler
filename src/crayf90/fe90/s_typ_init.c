@@ -382,7 +382,8 @@ void default_init_semantics(int	attr_idx)
 
    if (expr_semantics(&init_opnd, &expr_desc)) {
 
-      if (ATD_POINTER(attr_idx) &&
+      if ((ATD_POINTER(attr_idx) ||
+	    TYP_LINEAR(ATD_TYPE_IDX(attr_idx)) == Proc_Ptr) &&
           (OPND_FLD(init_opnd) == AT_Tbl_Idx || 
            OPND_FLD(init_opnd) == CN_Tbl_Idx ||
            (OPND_FLD(init_opnd) == IR_Tbl_Idx &&
@@ -397,7 +398,8 @@ void default_init_semantics(int	attr_idx)
 
          /* The initialization expression must be a constant. */
 
-         if (ATD_POINTER(attr_idx) &&
+	  if ((ATD_POINTER(attr_idx) ||
+	       TYP_LINEAR(ATD_TYPE_IDX(attr_idx)) == Proc_Ptr) &&
              OPND_FLD(init_opnd) == IR_Tbl_Idx &&
              IR_OPR(OPND_IDX(init_opnd)) == Null_Intrinsic_Opr) {
 
@@ -488,7 +490,8 @@ EXIT:
 
    FREE_SH_NODE(type_init_sh_idx);
 
-   if (AT_DCL_ERR(attr_idx) || null_init) {
+   if (AT_DCL_ERR(attr_idx) ||
+       (null_init && TYP_LINEAR(ATD_TYPE_IDX(attr_idx)) != Proc_Ptr)) {
       ATD_CPNT_INIT_IDX(attr_idx) = NULL_IDX;
       ATD_FLD(attr_idx)		  = NO_Tbl_Idx;
    }

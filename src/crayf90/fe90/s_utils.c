@@ -3187,7 +3187,7 @@ void process_cpnt_inits(opnd_type  	*left_opnd,
              IR_RANK(ir_idx)    = IR_RANK(IR_IDX_L(ir_idx));
          }
 
-         gen_opnd(&opnd, ir_idx, IR_Tbl_Idx, line, col);
+	 gen_opnd(&opnd, ir_idx, IR_Tbl_Idx, line, col);
 
          if (opr == Asg_Opr) {
 
@@ -3210,11 +3210,17 @@ void process_cpnt_inits(opnd_type  	*left_opnd,
             IR_COL_NUM_L(init_idx) = col;
 
 
-            IR_IDX_R(init_idx)       = ATD_CPNT_INIT_IDX(attr_idx);
-            IR_FLD_R(init_idx)       = (fld_type) ATD_FLD(attr_idx);
-            IR_LINE_NUM_R(init_idx)  = line;
-            IR_COL_NUM_R(init_idx)   = col;
+	    if (TYP_LINEAR(ATD_TYPE_IDX(attr_idx)) != Proc_Ptr) {
+		IR_IDX_R(init_idx) = ATD_CPNT_INIT_IDX(attr_idx);
+		IR_FLD_R(init_idx) = (fld_type) ATD_FLD(attr_idx);
 
+	    } else {
+		IR_IDX_R(init_idx) = CN_INTEGER_ZERO_IDX;
+		IR_FLD_R(init_idx) = CN_Tbl_Idx;
+	    }
+
+	    IR_LINE_NUM_R(init_idx)  = line;
+	    IR_COL_NUM_R(init_idx)   = col;
             gen_sh(position, Assignment_Stmt, line, col, FALSE, FALSE, TRUE);
 
             if (position == After) {
@@ -3275,7 +3281,11 @@ void process_cpnt_inits(opnd_type  	*left_opnd,
 
                tmp_idx = find_left_attr(&tmp_opnd);
 
-               if (ATD_FLD(tmp_idx) == CN_Tbl_Idx) {
+	       if (TYP_LINEAR(ATD_TYPE_IDX(attr_idx)) == Proc_Ptr) {
+		  const_idx = CN_INTEGER_ZERO_IDX;
+		  ATD_CPNT_INIT_IDX(attr_idx) = NULL_IDX;
+	       }
+	       else if (ATD_FLD(tmp_idx) == CN_Tbl_Idx) {
                   const_idx = ATD_TMP_IDX(tmp_idx);
                }
                else if (ATD_FLD(tmp_idx) == IR_Tbl_Idx &&
