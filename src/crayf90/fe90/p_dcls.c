@@ -773,6 +773,7 @@ static void parse_cpnt_dcl_stmt()
                have_attr_list			= TRUE;
 	       ATD_ALLOCATABLE(AT_WORK_IDX)	= TRUE;
 	       ATD_IM_A_DOPE(AT_WORK_IDX)       = TRUE;
+	       ATT_DOPE_CPNT(CURR_BLK_NAME)     = TRUE;
 	       save_line = array_line = TOKEN_LINE(token);
 	       save_column = array_column = TOKEN_COLUMN(token);
 	       ATT_ALLOCATABLE_CPNT(CURR_BLK_NAME) = TRUE;
@@ -787,9 +788,14 @@ static void parse_cpnt_dcl_stmt()
                             TOKEN_COLUMN(token), "POINTER");
                }
 
-               ATD_POINTER(AT_WORK_IDX)	  = TYP_LINEAR(type_idx) != Proc_Ptr;
-               ATD_IM_A_DOPE(AT_WORK_IDX) = TYP_LINEAR(type_idx) != Proc_Ptr;
-               ATT_POINTER_CPNT(CURR_BLK_NAME)	|= TYP_LINEAR(type_idx) != Proc_Ptr;
+               ATD_POINTER(AT_WORK_IDX)   = TRUE;
+
+	       if (TYP_LINEAR(type_idx) != Proc_Ptr) {
+		   ATD_IM_A_DOPE(AT_WORK_IDX)   = TRUE;
+		   ATT_DOPE_CPNT(CURR_BLK_NAME) = TRUE;
+	       }
+
+               ATT_POINTER_CPNT(CURR_BLK_NAME)	= TRUE;
 
                have_attr_list			= TRUE;
                ATT_NUMERIC_CPNT(CURR_BLK_NAME)	= TRUE;

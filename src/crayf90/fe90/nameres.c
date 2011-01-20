@@ -309,7 +309,13 @@ boolean	fnd_semantic_err(obj_type	new_obj,
          }
 	 else if (AT_OBJ_CLASS(attr_idx) == Data_Obj &&
 		  TYP_LINEAR(ATD_TYPE_IDX(attr_idx)) == Proc_Ptr) {
-	     ;
+
+	     if (AT_NAMELIST_OBJ(attr_idx)) {
+		 msg_num = 552;
+		 msg_str = "POINTER";
+		 new_obj = Obj_Namelist_Obj;
+		 goto ISSUE_ERR;
+	     }
 
          } else if ((AT_REFERENCED(attr_idx) >= Dcl_Bound_Ref ||
 		  AT_DEFINED(attr_idx)) &&

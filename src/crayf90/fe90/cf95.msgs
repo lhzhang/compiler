@@ -21864,4 +21864,11 @@ Error :  Interface of "%s" is not a %s interface
 .PP
 The interface describing this procedure pointer is not a subroutine or function
 .ME
-$ LAST NUMBER USED : 1706
+$ Error : 1707
+$msg  1707 I/O list cannot contain a procedure pointer
+$nexp 1707
+Error :  I/O list cannot contain a procedure pointer
+.PP
+Procedure pointers cannot be read or written in I/O lists
+.ME
+$ LAST NUMBER USED : 1707

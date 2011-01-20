@@ -5946,7 +5946,7 @@ static	void	attr_semantics(int	attr_idx,
            (ATD_CLASS(attr_idx) != Dummy_Argument ||
               ATD_INTENT(attr_idx) == Intent_Out) &&
             ATD_CLASS(attr_idx) != CRI__Pointee &&
-           ((ATT_POINTER_CPNT(TYP_IDX(type_idx)) ||
+           ((ATT_DOPE_CPNT(TYP_IDX(type_idx)) ||
 #ifdef KEY /* Bug 6845 */
            ATT_ALLOCATABLE_CPNT(TYP_IDX(type_idx)) ||
 #endif /* KEY Bug 6845 */
@@ -5967,9 +5967,9 @@ static	void	attr_semantics(int	attr_idx,
            (ATD_CLASS(attr_idx) != Dummy_Argument ||
               ATD_INTENT(attr_idx) == Intent_Out) &&
             ATD_CLASS(attr_idx) != CRI__Pointee &&
-           (ATT_POINTER_CPNT(TYP_IDX(type_idx)) ||
+           (ATT_DOPE_CPNT(TYP_IDX(type_idx)) ||
             (ATT_DEFAULT_INITIALIZED(TYP_IDX(type_idx)) &&
-            !ATD_DATA_INIT(attr_idx)))))
+	    !ATD_DATA_INIT(attr_idx)))))
 #   endif /* KEY Bug 431, (1046, 1289, 8717) */
 # endif /* 0 */
       {

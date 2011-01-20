@@ -2997,6 +2997,15 @@
 # endif
 
 # ifdef _DEBUG
+# define ATT_DOPE_CPNT(IDX)						       \
+	((AT_OBJ_CLASS(IDX) == Derived_Type) ?				       \
+		attr_tbl : sytb_var_error("ATT_DOPE_CPNT", IDX))	       \
+		[IDX].fld.flag31
+# else
+# define ATT_DOPE_CPNT(IDX)		attr_tbl[IDX].fld.flag31
+# endif
+
+# ifdef _DEBUG
 # define ATT_SCP_IDX(IDX)                                                      \
         ((AT_OBJ_CLASS(IDX) == Derived_Type) ?                                 \
 		attr_aux_tbl : attr_aux_var_error("ATT_SCP_IDX", IDX))	       \

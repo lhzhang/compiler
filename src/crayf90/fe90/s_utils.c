@@ -3143,7 +3143,9 @@ void process_cpnt_inits(opnd_type  	*left_opnd,
       attr_idx = SN_ATTR_IDX(sn_idx);
 
 #ifdef KEY /* Bug 6845 */
-      if (ATD_POINTER(attr_idx) || ATD_ALLOCATABLE(attr_idx))
+      if (ATD_ALLOCATABLE(attr_idx) ||
+	  (ATD_POINTER(attr_idx) &&
+	   TYP_LINEAR(ATD_TYPE_IDX(attr_idx)) != Proc_Ptr))
 #else /* KEY Bug 6845 */
       if (ATD_POINTER(attr_idx))
 #endif /* KEY Bug 6845 */

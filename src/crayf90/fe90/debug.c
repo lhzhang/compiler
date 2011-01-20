@@ -5929,8 +5929,9 @@ static void dump_at_ntry (FILE		*out_file,
                  "ATT_PRIVATE_CPNT", boolean_str[ATT_PRIVATE_CPNT(at_idx)]);
 
 #ifdef KEY /* Bug 6845 */
-         fprintf(out_file, "  %-16s= %-7s\n",
-                 "ATT_ALLOCAT_CPNT", boolean_str[ATT_ALLOCATABLE_CPNT(at_idx)]);
+         fprintf(out_file, "  %-16s= %-7s %-16s= %-7s\n",
+                 "ATT_ALLOCAT_CPNT", boolean_str[ATT_ALLOCATABLE_CPNT(at_idx)],
+		 "ATT_DOPE_CPNT",    boolean_str[ATT_DOPE_CPNT(at_idx)]);
 #endif /* KEY Bug 6845 */
 
          fprintf(out_file, "  %-16s= %-7d %-16s= %-7s %-16s= %-8d\n",

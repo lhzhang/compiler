@@ -4614,6 +4614,12 @@ static boolean io_list_semantics(opnd_type     *top_opnd,
             }
          } /* io_type == Read */
 
+	 if (exp_desc.linear_type == Proc_Ptr) {
+	     find_opnd_line_and_column(&opnd, &line, &col);
+	     PRINTMSG(line, 1707, Error, col);
+	     semantically_correct = FALSE;
+	 }
+
          if (exp_desc.type == Structure) {
 
 #ifdef KEY /* Bug 6845 */
