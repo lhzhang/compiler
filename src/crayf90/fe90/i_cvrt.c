@@ -12327,6 +12327,20 @@ static TYPE	send_derived_type(int	type_idx)
       goto EXIT;
    }
 
+   /* Implement the intrinsic TYPE(C_FUNPTR) as a procedure pointer. */
+
+   if (AT_IS_INTRIN(dt_attr_idx) &&
+       strcmp(AT_ORIG_NAME_PTR(dt_attr_idx), "C_FUNPTR") == 0) {
+       pdg_type_idx = fei_descriptor(0,
+				     Basic,
+				     0,
+				     Procedure_Pointer,
+				     V_oid,
+				     DWord_Align);
+
+       return pdg_type_idx;
+   }
+
 #ifdef KEY /* Bug 14150 */
   if (c_ptr_abi_trouble(dt_attr_idx)) {
     pdg_type_idx = fei_descriptor(0, Basic, bit_size_tbl[Integer_4], Integral,

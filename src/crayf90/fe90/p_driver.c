@@ -859,8 +859,8 @@ int intrinsic_module_lookup(int attr_idx)
   if (Derived_Type == obj_class) {
     imt_entry *keyp = find_imt(AT_ORIG_NAME_PTR(attr_idx));
     if (keyp) {
+      AT_IS_INTRIN(attr_idx) = TRUE;
       if (is_x8664_n32() && keyp->kind == imt_type) {
-        AT_IS_INTRIN(attr_idx) = TRUE;
 	if (AT_OBJ_CLASS(attr_idx) == Derived_Type) {
 	  ATT_NUM_CPNTS(attr_idx) = 0;
 	  ATT_FIRST_CPNT_IDX(attr_idx) = 0;

@@ -119,7 +119,13 @@ module iso_c_binding
     end subroutine c_f_pointers
   end interface c_f_pointer
 
-  ! 15.1.2.3 c_f_procpointer not implementable till we have procedure pointers
+  interface c_f_procpointer
+    subroutine c_f_procpointer(cptr, fptr)
+      import :: c_funptr
+      type(c_funptr), intent(in) :: cptr
+      procedure(), pointer, intent(out) :: fptr
+    end subroutine c_f_procpointer
+  end interface
 
   ! 15.1.2.4 c_funloc not completely implementable till we have procedure
   ! pointers; requires type checking in front end code in s_intrin.c
@@ -141,14 +147,6 @@ module iso_c_binding
       ANYTYPE :: x
     end function c_loc
   end interface c_loc
-
-!TBD contains
-
-!TBD  subroutine c_f_procpointer(cptr, fptr)
-!TBD    type(c_funptr), intent(in) :: cptr
-!TBD    procedure(), pointer, intent(out) :: fptr
-!TBD    fptr => cptr%px;
-!TBD  end subroutine c_f_procpointer
 
 #endif /* NOBIND */
 end module iso_c_binding

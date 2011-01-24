@@ -6059,11 +6059,12 @@ compare_length(opnd_type shape, int rank2) {
   }
   return compare_cn_and_value(OPND_IDX(shape), rank2, Eq_Opr);
 }
+
+
 /******************************************************************************\
 |*                                                                            *|
 |* Description:                                                               *|
 |*      Function    C_F_POINTER(CPTR, FPTR [, SHAPE]) intrinsic.              *|
-|*      Function    C_F_PROCPOINTER(CPTR, FPTR [, SHAPE]) intrinsic.          *|
 |*                                                                            *|
 |* Input parameters:                                                          *|
 |*      NONE                                                                  *|
@@ -6123,13 +6124,9 @@ void    c_f_pointer_intrinsic(opnd_type     *result_opnd,
          IR_OPR(IL_IDX(list_idx2)) == Section_Subscript_Opr))) {
       attr_idx = find_base_attr(&IL_OPND(list_idx2), &unused1, &unused2);
 
-      if (ATP_INTRIN_ENUM(*spec_idx) == C_F_Pointer_Intrinsic &&
-	(AT_OBJ_CLASS(attr_idx) != Data_Obj || !ATD_POINTER(attr_idx))) {
-	PRINTMSG(arg_info_list[info_idx2].line, 700,  Error, 
-		 arg_info_list[info_idx2].col, AT_OBJ_NAME_PTR(*spec_idx));
-      }
-      else if (ATP_INTRIN_ENUM(*spec_idx) == C_F_Procpointer_Intrinsic) {
-	/* This will need more work once we have procedure pointer vars */
+      if (AT_OBJ_CLASS(attr_idx) != Data_Obj || !ATD_POINTER(attr_idx)) {
+	  PRINTMSG(arg_info_list[info_idx2].line, 700,  Error, 
+		   arg_info_list[info_idx2].col, AT_OBJ_NAME_PTR(*spec_idx));
       }
    }
 
@@ -6165,6 +6162,83 @@ void    c_f_pointer_intrinsic(opnd_type     *result_opnd,
 
 }  /* c_f_pointer_intrinsic */
 #endif /* KEY Bug 14150 */
+
+/******************************************************************************\
+|*                                                                            *|
+|* Description:                                                               *|
+|*      Subroutine    C_F_PROCPOINTER(CPTR, FPTR) intrinsic.                  *|
+|*                                                                            *|
+|* Input parameters:                                                          *|
+|*      NONE                                                                  *|
+|*                                                                            *|
+|* Output parameters:                                                         *|
+|*      NONE                                                                  *|
+|*                                                                            *|
+|* Returns:                                                                   *|
+|*      NOTHING                                                               *|
+|*                                                                            *|
+\******************************************************************************/
+
+void    c_f_procpointer_intrinsic(opnd_type *result_opnd,
+				  expr_arg_type *res_exp_desc,
+				  int *spec_idx)
+{
+    int ir_idx, type_idx, attr;
+    int list_idx1, list_idx2;
+    int info_idx1, info_idx2;
+    opnd_type fptr, cptr;
+    int line, col;
+
+    ir_idx = OPND_IDX((*result_opnd));
+
+    line = IR_LINE_NUM(ir_idx);
+    col  = IR_COL_NUM(ir_idx);
+
+    list_idx1 = IR_IDX_R(ir_idx);
+    list_idx2 = IL_NEXT_LIST_IDX(list_idx1);
+
+    info_idx1 = IL_ARG_DESC_IDX(list_idx1);
+    info_idx2 = IL_ARG_DESC_IDX(list_idx2);
+
+    cptr = IL_OPND(info_idx1);
+    fptr = IL_OPND(info_idx2);
+
+    if (!pp_operand(&fptr))
+	goto error;
+
+    /* Check that cptr is type(c_funptr) */
+
+    if (cptr.fld == AT_Tbl_Idx)
+	type_idx = ATD_TYPE_IDX(cptr.idx);
+
+    else if (cptr.fld == IR_Tbl_Idx)
+	type_idx = IR_TYPE_IDX(cptr.idx);
+
+    else {
+	PRINTMSG(line, 700, Error, col);
+	return;
+    }
+
+    if (TYP_TYPE(type_idx) != Structure)
+	goto error;
+
+    attr = TYP_IDX(type_idx);
+    if (!AT_IS_INTRIN(attr) || strcmp(AT_ORIG_NAME_PTR(attr), "C_FUNPTR") != 0)
+	goto error;
+
+    /* Transmogrify the subroutine call IR to a ProcPtr_Asg_Opr. */
+
+    IR_OPR(ir_idx)    = ProcPtr_Asg_Opr;
+    IR_OPND_L(ir_idx) = fptr;
+    IR_OPND_R(ir_idx) = cptr;
+    return;
+
+ error:
+    PRINTMSG(line, 700, Error, col);
+}
+
+
+
 
 
 /******************************************************************************\

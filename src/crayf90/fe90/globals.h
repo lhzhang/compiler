@@ -2713,8 +2713,10 @@ extern  void  numarg_intrinsic  (opnd_type *, expr_arg_type *, int *);
 extern  void  fcd_intrinsic     (opnd_type *, expr_arg_type *, int *);
 extern  void  loc_intrinsic     (opnd_type *, expr_arg_type *, int *);
 extern  void  clock_intrinsic   (opnd_type *, expr_arg_type *, int *);
+
 #ifdef KEY /* Bug 14150 */
 extern  void  c_f_pointer_intrinsic(opnd_type *, expr_arg_type *, int *);
+extern  void  c_f_procpointer_intrinsic(opnd_type *, expr_arg_type *, int *);
 #endif /* KEY Bug 14150 */
 #ifdef KEY
 extern  void  time_intrinsic    (opnd_type *, expr_arg_type *, int *);

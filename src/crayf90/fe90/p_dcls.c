@@ -3753,14 +3753,14 @@ char *existing;
 	    break;
 
 	case Tok_Kwd_Intent:
-	    if (new_intent != Intent_Unseen) {
+	    if (spec->intent != Intent_Unseen) {
 		PRINTMSG(TOKEN_LINE(token), 424, Error,
 			 TOKEN_COLUMN(token), "INTENT");
 		return 1;
 	    }
 
-	    new_intent = parse_intent_spec();
-	    if (new_intent == Intent_Unseen)
+	    spec->intent = parse_intent_spec();
+	    if (spec->intent == Intent_Unseen)
 		return 1;
 
 	    break;
