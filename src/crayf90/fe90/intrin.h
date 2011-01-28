@@ -14196,7 +14196,7 @@ void	(*intrinsic_semantics[]) ()	= {
 #ifdef KEY /* Bug 14150 */
         c_f_pointer_intrinsic,		/*  C_F_Pointer_Intrinsic	     */
         c_f_procpointer_intrinsic,	/*  C_F_Procpointer_Intrinsic	     */
-        loc_intrinsic,			/*  C_Funloc_Intrinsic		     */
+	c_funloc_intrinsic,		/*  C_Funloc_Intrinsic		     */
         loc_intrinsic,			/*  C_Loc_Iso_Intrinsic	             */
 #endif /* KEY Bug 14150 */
 	loc_intrinsic,         		/*  C_Loc_Intrinsic          	     */

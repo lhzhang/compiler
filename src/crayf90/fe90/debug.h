@@ -1401,6 +1401,7 @@ char		*operator_str[]		= {
 		 	"Cselect_Opr",
 #endif /* KEY Bug 10410 */
 			"ProcPtr_Asg_Opr",
+			"ProcPtr_Opr",
                         "The_Last_Opr"
 		};
 

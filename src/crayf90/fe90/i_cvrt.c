@@ -3362,6 +3362,7 @@ static void	cvrt_exp_to_pdg(int         ir_idx,
    case Leadz_Opr :
    case Poppar_Opr :
    case Popcnt_Opr :
+   case ProcPtr_Opr :
    case Nint_Opr :
    case Anint_Opr :
    case Sign_Opr :
@@ -3526,6 +3527,7 @@ static void	cvrt_exp_to_pdg(int         ir_idx,
 
         case Int_Opr :
         case Logical_Opr :
+	case ProcPtr_Opr :
         case Real_Opr :
         case Ichar_Opr :
         case Char_Opr :

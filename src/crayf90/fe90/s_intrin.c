@@ -5872,7 +5872,6 @@ c_loc_iso_arg_check(int attr_idx, int info_idx) {
 |*      Function    CLOC(C) intrinsic.                                        *|
 |*      Function    C_LOC(X) intrinsic (traditional Cray).                    *|
 |*      Function    C_LOC(X) intrinsic (iso_c_binding).		              *|
-|*      Function    C_FUNLOC(X) intrinsic.                                    *|
 |*                                                                            *|
 |* Input parameters:                                                          *|
 |*      NONE                                                                  *|
@@ -5906,12 +5905,10 @@ void    loc_intrinsic(opnd_type     *result_opnd,
    info_idx1 = IL_ARG_DESC_IDX(list_idx1);
 #ifdef KEY /* Bug 14150 */
    intrinsic_type which = ATP_INTRIN_ENUM(*spec_idx);
-   if (which == C_Loc_Iso_Intrinsic || which == C_Funloc_Intrinsic) {
+   if (which != C_Loc_Iso_Intrinsic)
      /* Type is already set correctly */
-   }
-   else
 #endif /* KEY Bug 14150 */
-   ATD_TYPE_IDX(ATP_RSLT_IDX(*spec_idx)) = CRI_Ptr_8;
+       ATD_TYPE_IDX(ATP_RSLT_IDX(*spec_idx)) = CRI_Ptr_8;
 
    if (ATP_INTRIN_ENUM(*spec_idx) == Cloc_Intrinsic) {
       ATD_TYPE_IDX(ATP_RSLT_IDX(*spec_idx)) = CRI_Ch_Ptr_8;
@@ -5984,20 +5981,17 @@ void    loc_intrinsic(opnd_type     *result_opnd,
       attr_idx = find_base_attr(&IL_OPND(list_idx1), &unused1, &unused2);
 
 #ifdef KEY /* Bug 14150 */
-      intrinsic_type which_intrinsic = ATP_INTRIN_ENUM(*spec_idx);
-      if (which_intrinsic == C_Loc_Iso_Intrinsic ||
-	which_intrinsic == C_Funloc_Intrinsic) {
-	int found_error = (which_intrinsic == C_Loc_Iso_Intrinsic) ?
-	  c_loc_iso_arg_check(attr_idx, info_idx1) :
-	  (AT_BIND_ATTR(attr_idx) ? 0 : 1692);
-	if (found_error) {
-	  PRINTMSG(arg_info_list[info_idx1].line, found_error, Error,
-	    arg_info_list[info_idx1].col, AT_OBJ_NAME_PTR(*spec_idx));
-	}
-	/* For now, call external procedure because giving Loc_Opr a result
-	 * type of type(c_ptr) or type(c_funptr) blows up elsewhere in the
-	 * front end. Sigh. See also table entry in p_driver.c */
-	goto EXIT;
+      if (ATP_INTRIN_ENUM(*spec_idx) == C_Loc_Iso_Intrinsic) {
+	  int found_error = c_loc_iso_arg_check(attr_idx, info_idx1);
+	  if (found_error) {
+	      PRINTMSG(arg_info_list[info_idx1].line, found_error, Error,
+		       arg_info_list[info_idx1].col, AT_OBJ_NAME_PTR(*spec_idx));
+
+	/* For now, call external procedure because giving Loc_Opr a
+	 * result type of type(c_ptr) blows up elsewhere in the front
+	 * end. Sigh. See also table entry in p_driver.c */
+	      goto EXIT;
+	  }
       }
 #endif /* KEY Bug 14150 */
 
@@ -6059,6 +6053,57 @@ compare_length(opnd_type shape, int rank2) {
   }
   return compare_cn_and_value(OPND_IDX(shape), rank2, Eq_Opr);
 }
+
+
+/******************************************************************************\
+|*                                                                            *|
+|* Description:                                                               *|
+|*      Function    C_FUNLOC(X) intrinsic.                                    *|
+|*                                                                            *|
+|* Input parameters:                                                          *|
+|*      NONE                                                                  *|
+|*                                                                            *|
+|* Output parameters:                                                         *|
+|*      NONE                                                                  *|
+|*                                                                            *|
+|* Returns:                                                                   *|
+|*      NOTHING                                                               *|
+|*                                                                            *|
+\******************************************************************************/
+
+void c_funloc_intrinsic(opnd_type     *result_opnd,
+			expr_arg_type *res_exp_desc,
+			int           *spec_idx) {
+    int line, col, ir_idx;
+    opnd_type x;
+
+    ir_idx = OPND_IDX((*result_opnd));
+
+    line = IR_LINE_NUM(ir_idx);
+    col  = IR_COL_NUM(ir_idx);
+
+    x = IL_OPND(IL_ARG_DESC_IDX(IR_IDX_R(ir_idx)));
+
+    if (!pp_operand(&x) &&
+	(x.fld != AT_Tbl_Idx || AT_OBJ_CLASS(x.idx) != Pgm_Unit)) {
+
+	PRINTMSG(line, 700, Error, col);
+    }
+    else {
+	IR_TYPE_IDX(ir_idx) = ATD_TYPE_IDX(ATP_RSLT_IDX(IR_IDX_L(ir_idx)));
+
+	IR_OPR(ir_idx) = ProcPtr_Opr;
+	IR_OPND_L(ir_idx) = x;
+
+	IR_FLD_R(ir_idx) = 0;
+	IR_IDX_R(ir_idx) = 0;
+
+	res_exp_desc->type = Structure;
+	res_exp_desc->linear_type = Structure_Type;
+	res_exp_desc->type_idx = IR_TYPE_IDX(ir_idx);
+    }
+}
+
 
 
 /******************************************************************************\
@@ -6185,7 +6230,6 @@ void    c_f_procpointer_intrinsic(opnd_type *result_opnd,
 {
     int ir_idx, type_idx, attr;
     int list_idx1, list_idx2;
-    int info_idx1, info_idx2;
     opnd_type fptr, cptr;
     int line, col;
 
@@ -6197,11 +6241,8 @@ void    c_f_procpointer_intrinsic(opnd_type *result_opnd,
     list_idx1 = IR_IDX_R(ir_idx);
     list_idx2 = IL_NEXT_LIST_IDX(list_idx1);
 
-    info_idx1 = IL_ARG_DESC_IDX(list_idx1);
-    info_idx2 = IL_ARG_DESC_IDX(list_idx2);
-
-    cptr = IL_OPND(info_idx1);
-    fptr = IL_OPND(info_idx2);
+    cptr = IL_OPND(list_idx1);
+    fptr = IL_OPND(list_idx2);
 
     if (!pp_operand(&fptr))
 	goto error;
@@ -6236,9 +6277,6 @@ void    c_f_procpointer_intrinsic(opnd_type *result_opnd,
  error:
     PRINTMSG(line, 700, Error, col);
 }
-
-
-
 
 
 /******************************************************************************\

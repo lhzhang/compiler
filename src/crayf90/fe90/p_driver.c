@@ -579,7 +579,7 @@ static imt_entry intrinsic_module_table[] = {
   /* For now, call external procedure for C_FUNLOC and C_LOC because front
    * end blows up if loc_intrinsic() in s_intrin.c creates a Loc_Opr whose
    * result is a derived type. */
-  { "C_FUNLOC",				imt_extern, C_Funloc_Intrinsic},
+  { "C_FUNLOC",				imt_inline, C_Funloc_Intrinsic},
   { "C_FUNPTR",				imt_type,   Unknown_Intrinsic},
   { "C_F_POINTERA",			imt_extern, C_F_Pointer_Intrinsic},
   { "C_F_POINTERS",			imt_extern, C_F_Pointer_Intrinsic},
@@ -912,15 +912,14 @@ int intrinsic_module_lookup(int attr_idx)
 	*(dot + 1) = toupper(*dot);
 	*user_name = '_';
       }
-      /* For x8664 -m32, types C_PTR and C_FUNPTR must be treated as scalars
-       * compatible with C "void *", not as structures. In user code, they
-       * are marked with AT_IS_INTRIN: the c_ptr_abi_trouble() function
-       * then ensures that functions which return them treat them as scalars.
-       * But when compiling iso_c_binding.F90, they are not marked specially,
-       * so here we must treat specially the two functions C_LOC and C_FUNLOC
-       * which return them. */
-      if (is_x8664_n32() && (keyp->index == C_Loc_Iso_Intrinsic ||
-	keyp->index == C_Funloc_Intrinsic)) {
+      /* For x8664 -m32, C_PTR must be treated as a scalars compatible
+       * with C "void *", not as a structures. In user code, it is
+       * marked with AT_IS_INTRIN: the c_ptr_abi_trouble() function
+       * then ensures that functions which returns it treat it as a
+       * scalar.  But when compiling iso_c_binding.F90, it is not
+       * marked specially, so here we must treat specially the
+       * function C_LOC which returns it. */
+      if (is_x8664_n32() && keyp->index == C_Loc_Iso_Intrinsic) {
 	ATP_EXTRA_DARG(spec_idx) = FALSE;
 	ATP_NUM_DARGS(spec_idx) = 1;
 	ATP_FIRST_IDX(spec_idx) += 1;

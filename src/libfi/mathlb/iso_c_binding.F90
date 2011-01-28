@@ -127,14 +127,10 @@ module iso_c_binding
     end subroutine c_f_procpointer
   end interface
 
-  ! 15.1.2.4 c_funloc not completely implementable till we have procedure
-  ! pointers; requires type checking in front end code in s_intrin.c
-
   interface c_funloc
     type(c_funptr) function c_funloc(x)
       import :: c_funptr
-      external :: x
-!dir$ ignore_tkr x
+      procedure (), pointer :: x
     end function c_funloc
   end interface c_funloc
 

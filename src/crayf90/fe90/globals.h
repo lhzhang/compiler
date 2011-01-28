@@ -1542,6 +1542,7 @@ enum    operator_values      {  Null_Opr,
 				Cselect_Opr,
 #endif /* KEY Bug 10410 */
 				ProcPtr_Asg_Opr,
+				ProcPtr_Opr,
                                 /* PLACE NEW OPERATORS ABOVE THIS LINE. */
                                 /* DO NOT PUT ANY OPRS AFTER THIS ONE */
 				The_Last_Opr
@@ -2712,6 +2713,7 @@ extern  void  lge_intrinsic     (opnd_type *, expr_arg_type *, int *);
 extern  void  numarg_intrinsic  (opnd_type *, expr_arg_type *, int *);
 extern  void  fcd_intrinsic     (opnd_type *, expr_arg_type *, int *);
 extern  void  loc_intrinsic     (opnd_type *, expr_arg_type *, int *);
+extern  void  c_funloc_intrinsic(opnd_type *, expr_arg_type *, int *);
 extern  void  clock_intrinsic   (opnd_type *, expr_arg_type *, int *);
 
 #ifdef KEY /* Bug 14150 */
