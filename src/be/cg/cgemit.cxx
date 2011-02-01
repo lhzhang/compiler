@@ -5974,16 +5974,19 @@ const char *SHFmask_String ( Elf64_Word m )
 {
   Elf64_Word f;
   std::string sep="";
-  std::ostringstream os;
+  static std::ostringstream os;
+  static std::string str;
 
+  os.str("");
   for (f=0x1; f; f<<=1) {
     if (f & m) {
       os << sep << SHF_String(f);
       sep=", ";
     }
   }
-
-  return (os.str()).c_str();
+  
+  str = os.str();
+  return str.c_str();
 }
 
 const char* SHT_String (INT t)
@@ -6354,8 +6357,9 @@ void EMT_Visibility (
 std::string
 EMT_Get_Qualified_Name (ST *st)
 {
-  std::ostringstream name;
-
+  static std::ostringstream name;
+  name.str("");
+  
   if (ST_name(st) && *(ST_name(st)) != '\0') {
 #if defined(BUILD_OS_DARWIN)
     name << underscorify(ST_name(st));
@@ -6611,7 +6615,7 @@ static void Print_Label (FILE *pfile, std::ostringstream *pstream, ST *st, INT64
 	fprintf (pfile, ":\n");
       }
 #else
-      fprintf (pfile, ":\t%s 0x%llx\n", ASM_CMNT_LINE, base_ofst);
+      fprintf (pfile, ":\t%s 0x%" PRIx64 "\n", ASM_CMNT_LINE, base_ofst);
 #endif
       Print_Dynsym (pfile, st);
     }
@@ -6662,16 +6666,16 @@ Print_Common (FILE *pfile, ST *st)
     EMT_Write_Qualified_Name(pfile, st);
 #ifdef TARG_X8664
 #if defined(BUILD_OS_DARWIN) /* .comm alignment arg not allowed */
-    fprintf ( pfile, ", %" SCNd64 "\n", TY_size(ST_type(st)));
+    fprintf ( pfile, ", %" PRId64 "\n", TY_size(ST_type(st)));
 #else /* defined(BUILD_OS_DARWIN) */
     if (LNO_Run_Simd && Simd_Align && TY_size(ST_type(st)) >= 16)
-      fprintf ( pfile, ", %" SCNd64 ", 16\n", TY_size(ST_type(st)));
+      fprintf ( pfile, ", %" PRId64 ", 16\n", TY_size(ST_type(st)));
     else
-      fprintf ( pfile, ", %" SCNd64 ", %d\n", 
+      fprintf ( pfile, ", %" PRId64 ", %d\n", 
  	TY_size(ST_type(st)), TY_align(ST_type(st)));
 #endif /* defined(BUILD_OS_DARWIN) */
 #else
-    fprintf ( pfile, ", %" SCNd64 ", %d\n", 
+    fprintf ( pfile, ", %" PRId64 ", %d\n", 
 		TY_size(ST_type(st)), TY_align(ST_type(st)));
 #endif
     Print_Dynsym (pfile, st);
@@ -7163,12 +7167,12 @@ r_apply_l_const (
 	hexfmt = TRUE;
       }
 #ifndef KEY
-      vstr_sprintf (buf, vstr_len(*buf), (hexfmt ? "0x%" SCNx64 "" : "%" SCNd64 ""), val );
+      vstr_sprintf (buf, vstr_len(*buf), (hexfmt ? "0x%" SCNx64 "" : "%" PRId64 ""), val );
 #else
       if ( TN_is_reloc_low16(t) )
 	vstr_sprintf (buf, vstr_len(*buf), "%hd", (signed short)val );
       else {
-	vstr_sprintf (buf, vstr_len(*buf), (hexfmt ? "0x%" SCNx64 "" : "%" SCNd64 ""), val );
+	vstr_sprintf (buf, vstr_len(*buf), (hexfmt ? "0x%" SCNx64 "" : "%" PRId64 ""), val );
       }
 #endif
       return TRUE;
@@ -7282,13 +7286,13 @@ r_apply_l_const (
   }
   else if ( TN_has_value(t) ) {
 #ifdef TARG_X8664
-    vstr_sprintf (buf, vstr_len(*buf),  (hexfmt ? "0x%" SCNx64 "" : "%" SCNd64 ""), TN_value(t) );
+    vstr_sprintf (buf, vstr_len(*buf),  (hexfmt ? "0x%" SCNx64 "" : "%" PRId64 ""), TN_value(t) );
 #else
     if ( TN_size(t) <= 4 )
       vstr_sprintf (buf, vstr_len(*buf), 
 		(hexfmt ? "0x%x" : "%d"), (mINT32)TN_value(t) );
     else
-      vstr_sprintf (buf, vstr_len(*buf),  (hexfmt ? "0x%" SCNx64 "" : "%" SCNd64 ""), TN_value(t) );
+      vstr_sprintf (buf, vstr_len(*buf),  (hexfmt ? "0x%" SCNx64 "" : "%" PRId64 ""), TN_value(t) );
 #endif /* TARG_X8664 */
 
     print_TN_offset = FALSE;	/* because value used instead */
@@ -7748,7 +7752,7 @@ static INT r_assemble_binary ( OP *op, BB *bb, ISA_PACK_INST *pinst )
 	}
 
 	FmtAssert (ISA_LC_Value_In_Class(val, OP_opnd_lit_class(op, i)),
-		   ("branch offset %" SCNd64 " doesn't fit; try recompiling with "
+		   ("branch offset %" PRId64 " doesn't fit; try recompiling with "
 		    "-CG:longbranch_limit=[try values smaller than %d]", 
 		    val, EMIT_Long_Branch_Limit));
       } 
@@ -7826,13 +7830,13 @@ static INT r_assemble_binary ( OP *op, BB *bb, ISA_PACK_INST *pinst )
 	  else {
 #ifdef TARG_IA64
 	    FmtAssert (ISA_LC_Value_In_Class(val, LC_i16),
-		("immediate value %" SCNd64 " too large for GPREL relocation", val));
+		("immediate value %" PRId64 " too large for GPREL relocation", val));
 #elif TARG_X8664
 	    FmtAssert (ISA_LC_Value_In_Class(val, LC_simm32),
-		("immediate value %" SCNd64 " too large for GPREL relocation", val));
+		("immediate value %" PRId64 " too large for GPREL relocation", val));
 #else
 	    FmtAssert (ISA_LC_Value_In_Class(val, LC_simm16),
-		("immediate value %" SCNd64 " too large for GPREL relocation", val));
+		("immediate value %" PRId64 " too large for GPREL relocation", val));
 #endif
 	    Em_Add_New_Rel (EMT_Put_Elf_Symbol (st), R_MIPS_GPREL, PC,
 			  PU_section);
@@ -7840,7 +7844,7 @@ static INT r_assemble_binary ( OP *op, BB *bb, ISA_PACK_INST *pinst )
 	}
 	ISA_LIT_CLASS lc = OP_opnd_lit_class(op, i);
 	FmtAssert(ISA_LC_Value_In_Class(val, lc),
-		  ("r_assemble_binary: illegal immediate value %" SCNd64 " for %s",
+		  ("r_assemble_binary: illegal immediate value %" PRId64 " for %s",
 		   val, ISA_LC_Name(lc)));
       } 
       else if (TN_is_enum(t)) {
@@ -9090,7 +9094,7 @@ Modify_Asm_String (char* asm_string, UINT32 position, bool memory,
     FmtAssert(!memory && TN_is_constant(tn) && TN_has_value(tn),
               ("ASM operand must be a register or a numeric constant"));
     char* buf = (char*) alloca(32);
-    sprintf(buf, "$%" SCNd64 "",TN_value(tn));
+    sprintf(buf, "$%" PRId64 "",TN_value(tn));
     name = buf;
   }
 #else
@@ -9100,7 +9104,7 @@ Modify_Asm_String (char* asm_string, UINT32 position, bool memory,
     FmtAssert(!(TN_is_symbol(tn) && ST_is_thread_local(TN_var(tn))),
               ("Modify_Asm_String: thread-local ASM operand NYI"));
     char* buf = (char*) alloca(32);
-    sprintf(buf, "%" SCNd64 "",TN_value(tn));
+    sprintf(buf, "%" PRId64 "",TN_value(tn));
     name = buf;
   }
 #endif
@@ -9744,8 +9748,8 @@ Emit_Loop_Note(BB *bb, FILE *file)
       INT64 trip_count = constant_trip ? TN_value(trip_tn) :
 					 (INT64)WN_loop_trip_est(wn);
       const char * const fmt =   anl_note
-			? " \"nesting depth: %d, %siterations: %" SCNd64 "\""
-			: ", nesting depth: %d, %siterations: %" SCNd64 "";
+			? " \"nesting depth: %d, %siterations: %" PRId64 "\""
+			: ", nesting depth: %d, %siterations: %" PRId64 "";
 
       fprintf (file, fmt, depth, estimated, trip_count);
     }
@@ -10001,7 +10005,7 @@ EMT_Assemble_BB ( BB *bb, WN *rwn )
 #ifdef KEY
       if (!seen_asm)
 #endif
-	DevWarn ("label %s offset %" SCNd64 " doesn't match PC %d", 
+	DevWarn ("label %s offset %" PRId64 " doesn't match PC %d", 
 		LABEL_name(lab), Get_Label_Offset(lab), PC);
     }
 #endif
@@ -10021,7 +10025,7 @@ EMT_Assemble_BB ( BB *bb, WN *rwn )
     if ( Assembly ) {
       fprintf ( Asm_File, "%s:\t%s 0x%" SCNx64 "\n", ST_name(st), ASM_CMNT, ST_ofst(st));
     }
-    Is_True (ST_ofst(st) == PC, ("st %s offset %" SCNd64 " doesn't match PC %d", 
+    Is_True (ST_ofst(st) == PC, ("st %s offset %" PRId64 " doesn't match PC %d", 
 	ST_name(st), ST_ofst(st), PC));
     Is_True (   !Has_Base_Block(st) 
 	     || (ST_base(st) == (BB_cold(bb) ? cold_base : text_base)),
@@ -10665,7 +10669,7 @@ Fixup_Long_Branches (INT32 *hot_size, INT32 *cold_size)
 	    if (Trace_Longbr) {
 	      #pragma mips_frequency_hint NEVER
 	      fprintf (TFile, "Found a long branch to %s, ", LABEL_name(lab));
-	      fprintf (TFile, "location: %d, distance: %" SCNd64 "\n", 
+	      fprintf (TFile, "location: %d, distance: %" PRId64 "\n", 
 		      cur_pc - start_pc, val);
 	    }
 	    new_longb = (LONGB_INFO *)alloca (sizeof(LONGB_INFO));
@@ -11205,7 +11209,7 @@ Trace_Init_Loc ( INT scn_idx, Elf64_Xword scn_ofst, INT32 repeat)
   /* Emit the section/offset/repeat as a line prefix -- the caller will
    * add context-specific information:
    */
-  fprintf ( TFile, "<init>: Section %s (offset %4" SCNd64 " x%d): ",
+  fprintf ( TFile, "<init>: Section %s (offset %4" PRId64 " x%d): ",
 	    ST_name(em_scn[scn_idx].sym), scn_ofst, repeat );
 }
 
@@ -11361,9 +11365,86 @@ static Elf64_Xword Handle_EH_Region_Length (LABEL_IDX l,
 
 /* ====================================================================
  *
+ * EMT_VAL
+ *
+ * Write a value (INITKIND_VAL) to the minir string stream 
+ *
+ * ====================================================================
+ */
+
+void EMT_VAL ( std::ostringstream *pstream, TCON *c )
+{
+  if (TCON_ty(*c) == MTYPE_STRING) {
+    INT slen, i;
+    char *bytes;
+    bool string_as_bytes;
+    slen = (*c).vals.sval.len;
+    bytes = Index_to_char_array ((*c).vals.sval.cp);
+    for (i = 0; i < slen-1; i++) {
+      if (bytes[i] == '\0') {
+	string_as_bytes = TRUE;
+	break;
+      }
+    }
+    if (string_as_bytes) {
+      const char *sep = "";
+      *pstream << "[ ";
+      for (i=0; i < slen ; i++) {
+	char buf[6];
+	sprintf(buf,"%x",bytes[i]);
+	//*pstream << sep << std::hex << bytes[i];
+	*pstream << sep << buf;
+	sep = ", ";
+      }
+      *pstream << " ]";
+    } else {
+      const char *sep = "\"";
+      if (slen > 500) 
+	*pstream << "[ ";
+      for (i=0; i < slen ; i++) {
+	char ch = bytes[i];
+	if (i % 500 == 0) {
+	  *pstream << sep;
+	  sep = "\", \"";
+	}
+	if ( ch >= ' ' && ch <= '~' && ch != '\\' && ch != '\"' ) 
+	  *pstream << ch;
+	else {
+	  char ch1 = 0;
+	  switch ( ch ) {
+	    case '\n':	ch1 = 'n'; break;
+	    case '\t':	ch1 = 't'; break;
+	    case '\b':	ch1 = 'b'; break;
+	    case '\r':	ch1 = 'r'; break;
+	    case '\f':	ch1 = 'f'; break;
+	    case '\v':	ch1 = 'v'; break;
+	    case '\?':	ch1 = '?'; break;
+	    case '\\':	ch1 = '\\'; break;
+	    case '\"':  ch1 = '"'; break;
+	  }
+	  if (ch1)
+	    *pstream << '\\' << ch1;
+	  else {
+	    char buf[6];
+	    sprintf(buf, "\\0%03o", ch & 0xff);
+	    *pstream << buf;
+	  }
+	}
+      }
+      *pstream << "\"";
+      if (slen > 500)
+	*pstream << " ]";
+    }
+  } else {
+    *pstream << Targ_Print( NULL, *c );
+  }
+}
+
+/* ====================================================================
+ *
  * Write_TCON
  *
- * Emit a TCON (constant) value to the assembly/object file.
+ * Emit a (constant) value to the assembly/object file.
  *
  * ====================================================================
  */
@@ -11466,7 +11547,7 @@ Write_Symbol (
     #pragma mips_frequency_hint NEVER
     Trace_Init_Loc (scn_idx, scn_ofst, repeat);
     fprintf ( TFile, "SYM " );
-    fprintf ( TFile, "%s %+" SCNd64 "\n", ST_name(sym), sym_ofst );
+    fprintf ( TFile, "%s %+" PRId64 "\n", ST_name(sym), sym_ofst );
   }
 
   /* make sure is allocated */
@@ -11488,7 +11569,7 @@ Write_Symbol (
       if (MiniR_Code) fprintf(MiniR_File, "TBD: mn4\n");
 #ifdef TARG_MIPS
       if (CG_emit_non_gas_syntax)
-	fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)padding);
+	fprintf(MiniR_Code ? MiniR_File : Asm_File, "\t%s %" PRId64 "\n", ".space", (INT64)padding);
       else
 #endif
       ASM_DIR_ZERO(MiniR_Code ? MiniR_File : Asm_File, padding);
@@ -11566,14 +11647,14 @@ Write_Symbol (
 	      objects_MINIR << ".LC" << ST_IDX_index(ST_st_idx(sym)) << "]\n";
 	  else {
 	    EMT_Write_Qualified_Name (Asm_File, basesym);
-	    fprintf (Asm_File, " %+" SCNd64 "\n", base_ofst);
+	    fprintf (Asm_File, " %+" PRId64 "\n", base_ofst);
 	  }
 	}
 	else if (ST_class(sym) == CLASS_FUNC && fptr) {
         	if (MiniR_Code) fprintf(MiniR_File, "TBD: mn5\n");
 		fprintf (MiniR_Code ? MiniR_File : Asm_File, " %s(", fptr);
 		EMT_Write_Qualified_Name (MiniR_Code ? MiniR_File : Asm_File, sym);
-		fprintf (MiniR_Code ? MiniR_File : Asm_File, " %+" SCNd64 ")\n", sym_ofst);
+		fprintf (MiniR_Code ? MiniR_File : Asm_File, " %+" PRId64 ")\n", sym_ofst);
 	}
 	else {
 	        if (MiniR_Code) {
@@ -11584,7 +11665,7 @@ Write_Symbol (
 	        }
 		else if (Assembly) {
 		  EMT_Write_Qualified_Name (Asm_File, sym);
-		  fprintf (Asm_File, " %+" SCNd64 "\n", sym_ofst);
+		  fprintf (Asm_File, " %+" PRId64 "\n", sym_ofst);
 		}
 	}
 #ifdef TARG_ST
@@ -11643,7 +11724,7 @@ Write_Label (
     #pragma mips_frequency_hint NEVER
     Trace_Init_Loc (scn_idx, scn_ofst, repeat);
     fprintf ( TFile, "LAB (%d) ", (INT)lab );
-    fprintf ( TFile, "%s %+" SCNd64 "\n", LABEL_name(lab), lab_ofst );
+    fprintf ( TFile, "%s %+" PRId64 "\n", LABEL_name(lab), lab_ofst );
   }
 
 #ifdef TODO
@@ -11664,7 +11745,7 @@ Write_Label (
       else {
 #ifdef TARG_MIPS
 	if (CG_emit_non_gas_syntax)
-	  fprintf( Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)padding);
+	  fprintf( Asm_File, "\t%s %" PRId64 "\n", ".space", (INT64)padding);
 	else
 #endif
 	  ASM_DIR_ZERO(Minir_Code ? MiniR_File : Asm_File, padding);
@@ -11717,7 +11798,7 @@ Write_Label (
 	  if (MiniR_Code)
 	    objects_MINIR << LABEL_name(lab) << ", '" << std::showpos << lab_ofst << "']\n";
 	  else
-	    fprintf (Asm_File, " %s %+" SCNd64 "\n", LABEL_name(lab), lab_ofst);
+	    fprintf (Asm_File, " %s %+" PRId64 "\n", LABEL_name(lab), lab_ofst);
 	else 
 	  if (MiniR_Code)
 	    objects_MINIR << LABEL_name(lab) << "]\n";
@@ -11911,10 +11992,15 @@ Write_INITV (INITV_IDX invidx, INT scn_idx, Elf64_Word scn_ofst)
 #endif // KEY
       else if (MiniR_Code) {
 	objects_MINIR << "      - " << Mtype_String(TCON_ty(tcon)) << ": ";
-	if (INITV_repeat2(inv) > 1)
-	  objects_MINIR << "[ " << Targ_Print (NULL, INITV_tc_val(inv)) << ", x" << INITV_repeat2 (inv) << " ]\n";
-	else  
-	  objects_MINIR << Targ_Print (NULL, INITV_tc_val(inv)) << "\n";
+	if (INITV_repeat2(inv) > 1) {
+	  objects_MINIR << "[ ";
+	  EMT_VAL (&objects_MINIR, &INITV_tc_val(inv));
+	  objects_MINIR << ", x" << INITV_repeat2 (inv) << " ]\n";
+	}
+	else {  
+	  EMT_VAL (&objects_MINIR, &INITV_tc_val(inv));
+	  objects_MINIR << "\n";
+	}
       }
       break;
 
@@ -12033,7 +12119,7 @@ Write_INITV (INITV_IDX invidx, INT scn_idx, Elf64_Word scn_ofst)
 #ifdef TARG_MIPS
 	if (CG_emit_non_gas_syntax)
 	  if (Assembly)
-	    fprintf(Asm_File, "\t%s %" SCNd64 "\n", ".space", 
+	    fprintf(Asm_File, "\t%s %" PRId64 "\n", ".space", 
 		  (INT64)(INITV_pad(inv) * INITV_repeat1(inv)));
 	else
 #endif
@@ -12095,7 +12181,7 @@ Write_INITO (
       if (Assembly) {
 #ifdef TARG_MIPS
 	if (CG_emit_non_gas_syntax)
-	  fprintf(Asm_File, "\t%s %" SCNd64 "\n", AS_SPACE, 
+	  fprintf(Asm_File, "\t%s %" PRId64 "\n", AS_SPACE, 
 		  (INT64)(inito_ofst - scn_ofst));
 	else
 #endif
@@ -12107,7 +12193,7 @@ Write_INITO (
       scn_ofst = inito_ofst;
     } else {
       FmtAssert ( inito_ofst >= scn_ofst, 
-	("Write_INITO: DATA overlap 1, inito ofst @ %" SCNd64 ", scn ofst @ %" SCNd64 "",
+	("Write_INITO: DATA overlap 1, inito ofst @ %" PRId64 ", scn ofst @ %" PRId64 "",
 	  inito_ofst, scn_ofst));
     }
 
@@ -12138,7 +12224,9 @@ Write_INITO (
 	  scn_ofst = Write_TCON (tc, scn_idx, scn_ofst, 1);
 	else if (MiniR_Code) {
 	  objects_MINIR << "    init:\n";
-	  objects_MINIR << "      - " << Mtype_String(TCON_ty(*tc)) << ": " << Targ_Print (NULL, *tc) << "\n";
+	  objects_MINIR << "      - " << Mtype_String(TCON_ty(*tc)) << ": ";
+	  EMT_VAL (&objects_MINIR, tc);
+	  objects_MINIR << "\n";
 	}
       }
     } else {
@@ -12408,7 +12496,7 @@ Print_ST_List(vector<ST*>& st_list, const char* header)
   vector<ST*>::iterator st_iter;
   for (st_iter = st_list.begin(); st_iter != st_list.end(); ++st_iter) {
     ST* st = *st_iter;
-    printf("%-25s%-15s%10" SCNu64 "%10" SCNd64 "\n",
+    printf("%-25s%-15s%10" SCNu64 "%10" PRId64 "\n",
            (ST_class(st) == CLASS_CONST ? "<constant>" : ST_name(st)), 
            (ST_class(Base_Symbol(st)) == CLASS_CONST ? "<constant>" :
             ST_name(Base_Symbol(st))),
@@ -12747,7 +12835,9 @@ Process_Initos_And_Literals (
 	objects_MINIR << "    section: " << ST_name(base) << "\n";
 	objects_MINIR << "    size: " << (unsigned) size << "\n";
 	objects_MINIR << "    init:\n";
-	objects_MINIR << "      - " << Mtype_String(TCON_ty(*tc)) << ": " << Targ_Print (NULL, *tc) << "\n";
+	objects_MINIR << "      - " << Mtype_String(TCON_ty(*tc)) << ": ";
+	EMT_VAL (&objects_MINIR, tc);
+	objects_MINIR << "\n";
 	ofst = size;
       }
       
@@ -13013,7 +13103,7 @@ Process_Bss_Data (SYMTAB_IDX stab)
 		if (size_to_skip > 0 && Assembly) {
 #ifdef TARG_MIPS
 		    if (CG_emit_non_gas_syntax)
-		      fprintf(Asm_File, "\t%s %" SCNd64 "\n", ".space", (INT64)size_to_skip);
+		      fprintf(Asm_File, "\t%s %" PRId64 "\n", ".space", (INT64)size_to_skip);
 		    else
 #endif
 			ASM_DIR_SKIP(Asm_File, size_to_skip);
@@ -13560,7 +13650,7 @@ EMT_Emit_PU ( ST *pu, DST_IDX pu_dst, WN *rwn )
       if (ST_class(sym) == CLASS_VAR && ST_sclass(sym) == SCLASS_AUTO) {
 	if (Has_Base_Block(sym)) {
 	  Base_Symbol_And_Offset(sym, &base, &ofst);
-	  fprintf ( Asm_File, "\t%s %s = %" SCNd64 "\n",
+	  fprintf ( Asm_File, "\t%s %s = %" PRId64 "\n",
 		    ASM_CMNT, ST_name(sym), ofst);
 	}
       }
@@ -13857,10 +13947,12 @@ MINIR_Dump_PU( ST *pu, DST_IDX pu_dst, WN *rwn )
 
   bb_pfx = "        ";
   for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
-    Setup_Text_Section_For_BB(bb);
-    // Assemble_BB
-    functions_MINIR << pfx << "  - ";
-    CG_Dump_Minir_BB(bb, bb_pfx, &functions_MINIR);
+    if (!BB_unreachable(bb) && (BB_entry(bb) || BB_preds(bb))) {
+      Setup_Text_Section_For_BB(bb);
+      // Assemble_BB
+      functions_MINIR << pfx << "  - ";
+      CG_Dump_Minir_BB(bb, bb_pfx, &functions_MINIR);
+    }
   }
   Setup_Text_Section_For_BB(REGION_First_BB);
 
@@ -13904,7 +13996,7 @@ static INT format_operand(
     INT64 imm = n + 1;
     ISA_LIT_CLASS lc = ISA_OPERAND_VALTYP_Literal_Class(vtype);
     if (!ISA_LC_Value_In_Class(imm, lc)) imm = ISA_LC_Min(lc);
-    len = sprintf(buf, "%" SCNd64 "", imm) + 1;
+    len = sprintf(buf, "%" PRId64 "", imm) + 1;
   } else if (ISA_OPERAND_VALTYP_Is_Enum(vtype)) {
     ISA_ENUM_CLASS ec = ISA_OPERAND_VALTYP_Enum_Class(vtype);
     len = sprintf(buf, "%d", ISA_ECV_Intval(ISA_EC_First_Value(ec))) + 1;

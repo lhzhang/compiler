@@ -86,17 +86,23 @@ TN_Register_Class_Name(TN *tn)
 static const char *
 TN_Virtual_Name(TN *tn)
 {
-  std::ostringstream name_buffer;
+  static std::ostringstream name_buffer;
+  static std::string str;
+  name_buffer.str("");
   name_buffer << "V" << TN_number(tn);
-  return name_buffer.str().c_str();
+  str = name_buffer.str();
+  return str.c_str();
 }
 
 const char *
 BB_Name(BB *bb)
 {
-  std::ostringstream name_buffer;
+  static std::ostringstream name_buffer;
+  static std::string str;
+  name_buffer.str("");
   name_buffer << "BB" << BB_id(bb);
-  return name_buffer.str().c_str();
+  str = name_buffer.str();
+  return str.c_str();
 }
 
 
@@ -131,16 +137,13 @@ CG_Dump_Minir_TN(TN *tn, TN *pinning, std::ostringstream *oss)
       const char *name = LABEL_name(TN_label(tn));
       INT64 offset = TN_offset(tn);
       if (offset == 0) 
-	*oss << "'" << name << "'";
-      else {
-	if (offset < 0) 
-	  *oss << "['" << name << ", " << offset << "']";
-	else 
-	  *oss << "'(" << name << "+" << offset << ")'";
-      }
+	*oss << "[" << name << "]";
+      else 
+	*oss << "[" << name << ", '" << std::showpos << offset << "']";
     } 
-    else if ( TN_is_tag(tn) ) 
-      *oss << "'" << LABEL_name(TN_label(tn)) << "'";
+    else if ( TN_is_tag(tn) ) {
+      *oss << "[" << LABEL_name(TN_label(tn)) << "]";
+    }
     else if ( TN_is_symbol(tn) ) {
       ST *var = TN_var(tn);
       
@@ -159,12 +162,8 @@ CG_Dump_Minir_TN(TN *tn, TN *pinning, std::ostringstream *oss)
       else {
 	if (TN_offset(tn) == 0) 
 	  *oss << ST_name(var);
-	else {
-	  if (TN_offset(tn) < 0) 
-	    *oss << "['" << ST_name(var) << "', " << TN_offset(tn) << "']";
-	  else 
-	    *oss << "['" << ST_name(var) << "'+'" << TN_offset(tn) << "']";
-	}
+	else 
+	  *oss << ST_name(var) << ", '" << std::showpos << TN_offset(tn) << "'";
       }
 #ifdef TARG_ST // relocation not available in targinfo path64 and available in MDS
       if (TN_relocs(tn) != ISA_RELOC_UNDEFINED && 
@@ -244,20 +243,22 @@ CG_Dump_Minir_OP(BB *bb, OP *op, const char *pfx, std::ostringstream *oss)
     INT nsuccs = BB_succs(bb) ? BBlist_Len(BB_succs(bb)): 0;
     if (nsuccs != 0) {
       BBLIST *bl;
-      BB *bb_fallthru = BB_Fall_Thru_Successor(bb);
+      BB *bb_fallthru = nsuccs == 1 ? NULL : BB_Fall_Thru_Successor(bb);
       BOOL single_target = nsuccs == 1 || (bb_fallthru != NULL && nsuccs == 2);
       *oss << sep << (single_target ? "target: " : "targets: [");
       sep = "";
       FOR_ALL_BB_SUCCS (bb, bl) {
-	if (BBLIST_item(bl) != bb_fallthru) {
+	if (BBLIST_item(bl) != bb_fallthru) 
+	  {
 	  *oss << sep << BB_Name(BBLIST_item(bl));
 	  sep = ", ";
 	}
       }
       if (!single_target) 
 	*oss << "]";
-      if (bb_fallthru != NULL) 
+      if (bb_fallthru != NULL) {
 	*oss << ", fallthru: " << BB_Name(bb_fallthru);
+      }
       sep = ", ";
     }
   }
@@ -331,7 +332,20 @@ CG_Dump_Minir_BB(BB *bb, const char *pfx, std::ostringstream *oss)
     *oss << pfx << "probabilities: { ";
     FOR_ALL_BB_SUCCS(bb, item) {
       BB *bb_succ = BBLIST_item(item);
-      *oss << sep << BB_Name(bb_succ) << ":" << BBLIST_prob(item);
+      *oss << sep << BB_Name(bb_succ) << ": " << BBLIST_prob(item);
+      sep = ", ";
+    }
+    *oss << " }\n";
+  }
+
+  // dump predecessor blocks
+  if (!BB_entry(bb)) {
+    const char *sep = "";
+    BBLIST *item;
+    *oss << pfx << "predecessors: { ";
+    FOR_ALL_BB_PREDS(bb, item) {
+      BB *bb_pred = BBLIST_item(item);
+      *oss << sep << BB_Name(bb_pred);
       sep = ", ";
     }
     *oss << " }\n";
@@ -348,47 +362,4 @@ CG_Dump_Minir_BB(BB *bb, const char *pfx, std::ostringstream *oss)
   }
 }
 
-
-void
-CG_Dump_Minir(INT32 pass_num, const char *pass_string, std::ostringstream *oss)
-{
-  BB *bb;
-  const char *sep;
-  const char *pfx;
-  const char *bb_pfx;
-  
-  // Name of the PU
-  *oss << "  - label: " << Cur_PU_Name << "\n";
-  pfx = "    ";
-  
-  // List of entry nodes
-  *oss << pfx << "entries: [";
-  sep = "";
-  for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
-    if (BB_entry(bb)) {
-      *oss << sep << BB_Name(bb);
-      sep = ", ";
-    }
-  }
-  *oss << "]\n";
-
-  // List of exit nodes
-  *oss << pfx << "%sexits: [";
-  sep = "";
-  for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
-    if (BB_exit(bb)) {
-      *oss << sep << BB_Name(bb);
-      sep = ", ";
-    }
-  }
-  *oss << "]\n";
-
-  // Emit Basic blocks
-  *oss << pfx << "bbs:\n";
-  bb_pfx = "        ";
-  for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
-    *oss << pfx << "  - ";
-    CG_Dump_Minir_BB(bb, bb_pfx, oss);
-  }
-}
 
