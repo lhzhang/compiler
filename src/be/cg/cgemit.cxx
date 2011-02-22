@@ -5947,20 +5947,20 @@ const char* SHF_String (INT f)
     return "allocatable";
   case SHF_EXECINSTR:
     return "executable";
-  case SHF_MERGE:
-    return "to-be-merged";
-  case SHF_STRINGS:
-    return "string";
-  case SHF_INFO_LINK:
-    return "info-link";
-  case SHF_LINK_ORDER:
-    return "link-order";
-  case SHF_OS_NONCONFORMING:
-    return "os-nonconforming";
-  case SHF_GROUP:
-    return "section-group-member";
-  case SHF_TLS:
-    return "thread-local-storage";
+  // case SHF_MERGE:
+    // return "to-be-merged";
+  // case SHF_STRINGS:
+    // return "string";
+  // case SHF_INFO_LINK:
+    // return "info-link";
+  // case SHF_LINK_ORDER:
+    // return "link-order";
+  // case SHF_OS_NONCONFORMING:
+    // return "os-nonconforming";
+  // case SHF_GROUP:
+    // return "section-group-member";
+  // case SHF_TLS:
+    // return "thread-local-storage";
   case SHF_MASKOS:
     return "mask-os";
   case SHF_MASKPROC:
