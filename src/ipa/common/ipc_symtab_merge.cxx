@@ -1729,7 +1729,7 @@ Merge_Global_St(UINT                   idx,
 	pext_st_idx = Enter_Original_St (original_tabs, original_st);
 	ld_set_st_idx (pext, pext_st_idx);
 	return pext_st_idx;
-    } else if (pext_st_idx == WHIRL_ST_IDX_NOT_AVAILABLE) {
+    } else if (pext_st_idx == (ST_IDX)WHIRL_ST_IDX_NOT_AVAILABLE) {
 	// We need to take into account the ELF version of this symbol,
 	// which may also have information about ELF symbols encountered
 	// in DSOs or ELF object files.  This ST is the first WHIRL symbol
