@@ -466,7 +466,7 @@ static FISSION_FUSION_STATUS Fuse_Outer_Loops(WN* loop1, WN* loop2,
 	    WN_do_body(loop1),writes1,reads1,stack1,
             scalar_writes1,scalar_reads1,params1,&OLF_default_pool);
 
-  if (array_ref_count1 == -1)
+  if (array_ref_count1 == (UINT)-1)
     return Failed;
   REF_LIST_STACK *writes2 = CXX_NEW(REF_LIST_STACK(&OLF_default_pool),
                                     &OLF_default_pool);
@@ -484,7 +484,7 @@ static FISSION_FUSION_STATUS Fuse_Outer_Loops(WN* loop1, WN* loop2,
   UINT array_ref_count2=New_Gather_References(
 	    WN_do_body(loop2),writes2,reads2,stack2,
             scalar_writes2,scalar_reads2,params2,&OLF_default_pool);
-  if (array_ref_count2 == -1)
+  if (array_ref_count2 == (UINT)-1)
     return Failed;
 
   if (array_ref_count1+array_ref_count2>OLF_size_upperbound && LNO_Fusion<2) {
