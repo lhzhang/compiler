@@ -186,7 +186,7 @@ set_addr_taken_expr (const WN* expr, SUMMARIZE<program>* sum,
           if (st_info.addr_saved_reset || ST_addr_saved (st)) {
             st_info.addr_saved = TRUE;
             Set_ST_addr_saved (st);
-            if (st_info.get_summary_symbol_idx() > -1) {
+            if (st_info.get_summary_symbol_idx() != ((UINT32) -1)) {
               sum->Get_symbol(st_info.get_summary_symbol_idx())->Set_addr_saved();
             }
             // propagate addr_saved atttribute from an element 
@@ -196,7 +196,7 @@ set_addr_taken_expr (const WN* expr, SUMMARIZE<program>* sum,
               IPL_ST_INFO& st_info = Aux_Symbol(base_st);
               st_info.addr_saved = TRUE;
               Set_ST_addr_saved(base_st);
-              if (st_info.get_summary_symbol_idx() > -1) {
+              if (st_info.get_summary_symbol_idx() != ((UINT32) -1)) {
                 sum->Get_symbol(st_info.get_summary_symbol_idx())->Set_addr_saved(); 
               }
             }
@@ -210,7 +210,7 @@ set_addr_taken_expr (const WN* expr, SUMMARIZE<program>* sum,
 
         case RECORD_PASSED:
           st_info.addr_passed = TRUE;
-          if (st_info.get_summary_symbol_idx() > -1) {
+          if (st_info.get_summary_symbol_idx() != ((UINT32) -1)) {
             sum->Get_symbol(st_info.get_summary_symbol_idx())->Set_addr_passed();
           }
           // propagate addr_passed atttribute from an element 
@@ -220,7 +220,7 @@ set_addr_taken_expr (const WN* expr, SUMMARIZE<program>* sum,
             IPL_ST_INFO& st_info = Aux_Symbol(base_st);
             st_info.addr_passed = TRUE;
             Set_ST_addr_passed(base_st);
-            if (st_info.get_summary_symbol_idx() > -1) {
+            if (st_info.get_summary_symbol_idx() != ((UINT32) -1)) {
               sum->Get_symbol(st_info.get_summary_symbol_idx())->Set_addr_passed(); 
             }
           }
@@ -805,7 +805,7 @@ SUMMARIZE<program>::Set_local_addr_taken_attrib ()
 
 	const IPL_ST_INFO& st_info = *first;
 
-	if (st_info.get_summary_symbol_idx() == -1)
+	if (st_info.get_summary_symbol_idx() == ((UINT32) -1))
 	    continue;
 
 	if (st_info.addr_saved || st_info.addr_passed) {
