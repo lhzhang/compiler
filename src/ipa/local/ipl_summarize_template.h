@@ -666,7 +666,7 @@ struct set_global_addr_taken_attrib
 	// now, update the summary_symbol
 
 	if (st_info.addr_saved || st_info.addr_passed) {
-	    UINT sym_idx = st_info.get_summary_symbol_idx();
+	    UINT32 sym_idx = st_info.get_summary_symbol_idx();
 
 	    Is_True (ST_class (st) == CLASS_VAR ||
 		     ST_class (st) == CLASS_FUNC,
