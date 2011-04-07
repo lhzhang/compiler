@@ -793,7 +793,7 @@ WN_get_PU_Infos (void *handle, INT32 *p_num_PUs)
 
 #ifdef BACK_END
 void *
-WN_get_section_base (void *handle, INT sect)
+WN_get_section_base (void *handle, Elf64_Word sect)
 {
     char *base;
 

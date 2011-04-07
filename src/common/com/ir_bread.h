@@ -59,7 +59,7 @@ extern void Set_Verbose_Info (BOOL val);
 extern INT WN_massage_input (char *baseaddr, Elf64_Word size, char*);
 
 /* Find the beginning of a particular section */
-extern void *WN_get_section_base (void *handle, INT sect);
+extern void *WN_get_section_base (void *handle, Elf64_Word sect);
 
 /* return size of elf section */
 extern Elf64_Word Get_Elf_Section_Size (void *handle, Elf64_Word type, Elf64_Word info);
