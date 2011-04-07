@@ -3482,12 +3482,12 @@ fprintf(fp, SBar);
           }
 
           SUMMARY_FEEDBACK *fb = callee->Get_feedback();
-          INT e_bb_cnt, e_stmt_cnt;
-          e_bb_cnt= e_stmt_cnt = (unsigned) -1;
+          UINT16 e_bb_cnt, e_stmt_cnt;
+          e_bb_cnt= e_stmt_cnt = (UINT16) -1;
 
           if(callee->Has_frequency ()) {
-              e_bb_cnt = (fb==NULL)? (unsigned) -1 : fb->Get_effective_bb_count ();
-              e_stmt_cnt = (fb==NULL)? (unsigned) -1 : fb->Get_effective_stmt_count ();
+              e_bb_cnt = (fb==NULL)? (UINT16) -1 : fb->Get_effective_bb_count ();
+              e_stmt_cnt = (fb==NULL)? (UINT16) -1 : fb->Get_effective_stmt_count ();
           }
 		  
           if (!seen_callee) {
