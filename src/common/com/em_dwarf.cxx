@@ -431,7 +431,7 @@ Em_Dwarf_Begin (BOOL is_64bit, BOOL dwarf_trace, BOOL is_cplus)
 }
 
 static Dwarf_Signed section_count = DW_DLV_NOCOUNT;
-static Dwarf_Unsigned relocation_section_count = DW_DLV_NOCOUNT;
+static Dwarf_Unsigned relocation_section_count = (Dwarf_Unsigned)DW_DLV_NOCOUNT;
 
 struct index_to_buffer_map_entry {
   pSCNINFO       cursection;
