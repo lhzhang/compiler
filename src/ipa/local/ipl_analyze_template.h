@@ -292,7 +292,7 @@ SUMMARIZE<program>::Process_phi_jump_function (WN *orig_wn, PHI_NODE *phi)
 	du->Get_entry_bb () : du->Get_cd (cr0->Defbb()->Id());
     IDTYPE cd1_bb_idx = cr1->Def_at_entry () ?
 	du->Get_entry_bb () : du->Get_cd (cr1->Defbb()->Id());
-    IDTYPE merged_cd = -1;
+    IDTYPE merged_cd = (IDTYPE)-1;
     
     if (cd0_bb_idx == 0 || cd1_bb_idx == 0) 
 	return -1;
@@ -314,7 +314,7 @@ SUMMARIZE<program>::Process_phi_jump_function (WN *orig_wn, PHI_NODE *phi)
 	}
     }
 
-    if (merged_cd != -1) {
+    if (merged_cd != (IDTYPE)-1) {
 	const SUMMARY_CHECK_POINT chk_pt (this);
 	INT ctrl_dep_idx = Process_cd_for_phi_node (merged_cd);
 
