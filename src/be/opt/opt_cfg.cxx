@@ -5605,7 +5605,7 @@ CFG::Print(FILE *fp, BOOL rpo, IDTYPE bb_id)
      BB_NODE   *tmp;
      FOR_ALL_ELEM(tmp, rpo_iter, Init()) {
        // print if bb_id is not set or just print a particular BB
-       if (bb_id == -1 || bb_id == tmp->Id())
+       if (bb_id == (IDTYPE)-1 || bb_id == tmp->Id())
 	 tmp->Print(fp);
      }
   }
@@ -5615,7 +5615,7 @@ CFG::Print(FILE *fp, BOOL rpo, IDTYPE bb_id)
     BB_NODE *tmp;
     FOR_ALL_NODE(tmp, cfg_iter, Init()) {
       // print if bb_id is not set or just print a particular BB
-      if (bb_id == -1 || bb_id == tmp->Id())
+      if (bb_id == (IDTYPE)-1 || bb_id == tmp->Id())
 	tmp->Print(fp);
     }
   }
