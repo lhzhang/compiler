@@ -944,7 +944,7 @@ ld_resolved_to_obj (void *pext, void *pobj)
 	    
     }
 
-    return (abfd == (struct _bfd *)pobj);
+    return (abfd == (bfd *)pobj);
 }
 
 
