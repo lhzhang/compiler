@@ -1242,7 +1242,7 @@ WN_read_generic_map(void           *handle,
 	
     cur_addr += (sizeof(Elf64_Word));	// advance over WN offset
 
-    if (node_offset == -1)
+    if (node_offset == (Elf64_Word)-1)
       break;
 
     // Why do we align here but not for the WN offset? -- RK 980615
