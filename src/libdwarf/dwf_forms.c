@@ -17,14 +17,17 @@
 
 */
 
-#include "config.h"
+//#include "config.h"
+#include "_libdwarf.h"
 #include "dwarf_stuff.h"
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
 #include <stdint.h>
+#if 0
 #include "pro_incl.h"
 #include "pro_expr.h"
+#endif
 
 #ifndef R_MIPS_NONE
 #define R_MIPS_NONE 0
@@ -34,6 +37,7 @@
 extern void _dwarf_pro_add_at_to_die(Dwarf_P_Die die,
 				     Dwarf_P_Attribute attr);
 
+#if 0
 /* Bug 1188
    There is probably a bug in somewhere dealing with the data width
    optimization (data format depends on the best fit for the incoming value).
@@ -65,7 +69,7 @@ dwf_add_AT_unsigned_const_ext(Dwarf_P_Debug dbg,
 
     if (attr != DW_AT_const_value ||
 	(intype != 1 && intype != 2 && intype != 4 && intype != 8)) {
-      _dwarf_p_error(dbg, error, DW_DLE_INPUT_ATTR_BAD);
+      _dwarf_p_error(dbg, error, DW_DLE_ERROR);
       return((Dwarf_P_Attribute)DW_DLV_BADADDR);
     }
 
@@ -81,31 +85,33 @@ dwf_add_AT_unsigned_const_ext(Dwarf_P_Debug dbg,
     }
 
     new_attr = (Dwarf_P_Attribute)
-        _dwarf_p_get_alloc(dbg, sizeof(struct Dwarf_P_Attribute_s));
+        _dwarf_p_get_alloc(dbg, sizeof(struct _Dwarf_Attribute));
     if (new_attr == NULL) {
         _dwarf_p_error(dbg, error, DW_DLE_ALLOC_FAIL);
         return((Dwarf_P_Attribute)DW_DLV_BADADDR);
     }
 
-    new_attr->ar_attribute = attr;
-    new_attr->ar_attribute_form = attr_form;
-#if defined(BUILD_OS_DARWIN) || defined(_WIN32) /* Should be related to target */
+    new_attr->at_attrib = attr;
+    new_attr->at_form = attr_form;
+#if 0
+#if defined(BUILD_OS_DARWIN) /* Should be related to target */
 #define NO_RELOCATION (~0)
-    new_attr->ar_rel_type = NO_RELOCATION;
+    new_attr->at_rel_type = NO_RELOCATION;
 #else
-    new_attr->ar_rel_type = R_MIPS_NONE;
+    new_attr->at_rel_type = R_MIPS_NONE;
 #endif /* ! defined(BUILD_OS_DARWIN) */
-    new_attr->ar_reloc_len = 0 ; /* irrelevant: unused with R_MIPS_NONE */
-    new_attr->ar_nbytes = size;
-    new_attr->ar_next  = 0;
+    new_attr->at_reloc_len = 0 ; /* irrelevant: unused with R_MIPS_NONE */
+#endif
+    new_attr->at_nbytes = size;
+    new_attr->at_next  = 0;
 
-    new_attr->ar_data = (char *)
+    new_attr->u[1].u8p = (char *)
         _dwarf_p_get_alloc(dbg, size);
-    if (new_attr->ar_data == NULL) {
+    if (new_attr->u[1]at_data == NULL) {
         _dwarf_p_error(dbg, error, DW_DLE_ALLOC_FAIL);
         return((Dwarf_P_Attribute)DW_DLV_BADADDR);
     }
-    WRITE_UNALIGNED(dbg,new_attr->ar_data,
+    WRITE_UNALIGNED(dbg,new_attr->u[1].u8p,
 	(const void *)&value,
 	sizeof(value),
 		size);
@@ -114,6 +120,7 @@ dwf_add_AT_unsigned_const_ext(Dwarf_P_Debug dbg,
     _dwarf_pro_add_at_to_die(ownerdie, new_attr);
     return new_attr;
 }
+#endif
 
 /* Bug 1785
    Complex constant (Fortran parameters) should be encoded as 8 byte or 16 byte
@@ -147,7 +154,7 @@ dwf_add_AT_complex_const(Dwarf_P_Debug	dbg,
 
     if (attr != DW_AT_const_value ||
 	(intype != 4 && intype != 8)) {
-      _dwarf_p_error(dbg, error, DW_DLE_INPUT_ATTR_BAD);
+      _dwarf_p_error(dbg, error, DW_DLE_ERROR);
       return((Dwarf_P_Attribute)DW_DLV_BADADDR);
     }
 
@@ -167,22 +174,22 @@ dwf_add_AT_complex_const(Dwarf_P_Debug	dbg,
       value[index+size/2+1] = (value2 >> (index * 8)) & 0xff;
 
     new_attr = (Dwarf_P_Attribute)
-        _dwarf_p_get_alloc(dbg, sizeof(struct Dwarf_P_Attribute_s));
+        _dwarf_p_get_alloc(dbg, sizeof(*Dwarf_P_Attribute));
     if (new_attr == NULL) {
         _dwarf_p_error(dbg, error, DW_DLE_ALLOC_FAIL);
         return((Dwarf_P_Attribute)DW_DLV_BADADDR);
     }
 
-    new_attr->ar_attribute = attr;
-    new_attr->ar_attribute_form = DW_FORM_block;
+    new_attr->at_attribute = attr;
+    new_attr->at_attribute_form = DW_FORM_block;
 #if defined(BUILD_OS_DARWIN) /* Should be related to target */
-    new_attr->ar_rel_type = NO_RELOCATION;
+    new_attr->at_rel_type = NO_RELOCATION;
 #else /* defined(BUILD_OS_DARWIN) */
-//    new_attr->ar_rel_type = R_MIPS_NONE;
+    new_attr->at_rel_type = R_MIPS_NONE;
 #endif /* defined(BUILD_OS_DARWIN) */
-    new_attr->ar_reloc_len = 0 ; /* irrelevant: unused with R_MIPS_NONE */
-    new_attr->ar_nbytes = size+1;
-    new_attr->ar_next  = 0;
+    new_attr->at_reloc_len = 0 ; /* irrelevant: unused with R_MIPS_NONE */
+    new_attr->at_nbytes = size+1;
+    new_attr->at_next  = 0;
 
     new_attr->ar_data = block_dest_ptr = (char *)
         _dwarf_p_get_alloc(dbg, size+1);

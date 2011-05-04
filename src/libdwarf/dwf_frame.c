@@ -17,16 +17,21 @@
 
 */
 
+#if 0
 #include "config.h"
 #include "config.h"
+#endif
+#include "_libdwarf.h"
 #include "dwarf_stuff.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
 #include <stdint.h>
+#if 0
 #include "pro_incl.h"
 #include "pro_frame.h"
+#endif
 
 Dwarf_Bool generate_fpic_dwarf;
 Dwarf_Bool generate_m64_dwarf;
@@ -77,13 +82,13 @@ dwf_add_ehframe_cie(Dwarf_P_Debug dbg,
     generate_fpic_dwarf = fpic;
     generate_m64_dwarf = is_64bit;
 
-    if (dbg->de_eh_frame_cies == NULL) {
-	dbg->de_eh_frame_cies = (Dwarf_P_Cie)
+    if (dbg->dbg_eh_frame == NULL) {
+	dbg->dbg_eh_frame = (Dwarf_P_Cie)
 	    _dwarf_p_get_alloc(dbg, sizeof(struct Dwarf_P_Cie_s));
-	if (dbg->de_eh_frame_cies == NULL) {
+	if (dbg->dbg_eh_frame == NULL) {
 	    DWARF_P_DBG_ERROR(dbg,DW_DLE_CIE_ALLOC,DW_DLV_NOCOUNT);
 	}
-	curcie = dbg->de_eh_frame_cies;
+	curcie = dbg->dbg_eh_frame;
 	dbg->de_eh_n_cie = 1;
 	dbg->de_eh_last_cie = curcie;
     }

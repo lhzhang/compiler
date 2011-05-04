@@ -1,239 +1,139 @@
-/*
- * Copyright 2005, 2006 PathScale, Inc.  All Rights Reserved.
+/*-
+ * Copyright (c) 2009 Kai Wang
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-/*
-
-  Copyright (C) 2000,2001,2004 Silicon Graphics, Inc.  All Rights Reserved.
-
-   Path64 is free software; you can redistribute it and/or modify it
-   under the terms of the GNU Lesser General Public License as published by
-   the Free Software Foundation version 2.1
-
-   Path64 is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with Path64; see the file COPYING.  If not, write to the Free
-   Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
-   02110-1301, USA.
-
-   Special thanks goes to SGI for their continued support to open source
-
-*/
-
-
-
-#include "config.h"
-#include "dwarf_incl.h"
-#include <stdio.h>
-#include "dwarf_abbrev.h"
+#include "_libdwarf.h"
 
 int
-dwarf_get_abbrev(Dwarf_Debug dbg,
-		 Dwarf_Unsigned offset,
-		 Dwarf_Abbrev * returned_abbrev,
-		 Dwarf_Unsigned * length,
-		 Dwarf_Unsigned * abbr_count, Dwarf_Error * error)
+dwarf_get_abbrev(Dwarf_Debug dbg, Dwarf_Unsigned offset,
+    Dwarf_Abbrev *return_abbrev, Dwarf_Unsigned *length,
+    Dwarf_Unsigned *attr_count, Dwarf_Error *error)
 {
-    Dwarf_Small *abbrev_ptr;
-    Dwarf_Small *abbrev_section_end;
-    Dwarf_Half attr;
-    Dwarf_Half attr_form;
-    Dwarf_Abbrev ret_abbrev;
-    Dwarf_Unsigned labbr_count = 0;
-    Dwarf_Unsigned utmp;
+	Dwarf_CU cu;
+	Dwarf_Abbrev ab;
 
-
-    if (dbg == NULL) {
-	_dwarf_error(NULL, error, DW_DLE_DBG_NULL);
-	return (DW_DLV_ERROR);
-    }
-    if (dbg->de_debug_abbrev == 0) {
-	/* Loads abbrev section (and .debug_info as we do those
-	   together). */
-	int res = _dwarf_load_debug_info(dbg, error);
-
-	if (res != DW_DLV_OK) {
-	    return res;
+	if (dbg == NULL || return_abbrev == NULL || length == NULL ||
+	    attr_count == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
 	}
-    }
 
-    if (offset >= dbg->de_debug_abbrev_size) {
-	return (DW_DLV_NO_ENTRY);
-    }
-
-
-    ret_abbrev = (Dwarf_Abbrev) _dwarf_get_alloc(dbg, DW_DLA_ABBREV, 1);
-    if (ret_abbrev == NULL) {
-	_dwarf_error(dbg, error, DW_DLE_ALLOC_FAIL);
-	return (DW_DLV_ERROR);
-    }
-    ret_abbrev->ab_dbg = dbg;
-    if (returned_abbrev == 0 || abbr_count == 0) {
-	_dwarf_error(dbg, error, DW_DLE_DWARF_ABBREV_NULL);
-	return (DW_DLV_ERROR);
-    }
-
-
-    *abbr_count = 0;
-    if (length != NULL)
-	*length = 1;
-
-    abbrev_ptr = dbg->de_debug_abbrev + offset;
-    abbrev_section_end =
-	dbg->de_debug_abbrev + dbg->de_debug_abbrev_size;
-
-    DECODE_LEB128_UWORD(abbrev_ptr, utmp);
-    ret_abbrev->ab_code = (Dwarf_Word) utmp;
-    if (ret_abbrev->ab_code == 0) {
-	*returned_abbrev = ret_abbrev;
-	*abbr_count = 0;
-	if (length) {
-	    *length = 1;
+	ab = NULL;
+	STAILQ_FOREACH(cu, &dbg->dbg_cu, cu_next) {
+		STAILQ_FOREACH(ab, &cu->cu_abbrev, ab_next) {
+			if (ab->ab_offset == offset)
+				goto found_ab;
+		}
 	}
+
+found_ab:
+	if (ab == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
+		return (DW_DLV_NO_ENTRY);
+	}
+
+	*return_abbrev = ab;
+	*length = ab->ab_length;
+	*attr_count = ab->ab_atnum;
+
 	return (DW_DLV_OK);
-    }
-
-    DECODE_LEB128_UWORD(abbrev_ptr, utmp);
-    ret_abbrev->ab_tag = utmp;
-    ret_abbrev->ab_has_child = *(abbrev_ptr++);
-    ret_abbrev->ab_abbrev_ptr = abbrev_ptr;
-
-    do {
-	Dwarf_Unsigned utmp2;
-
-	DECODE_LEB128_UWORD(abbrev_ptr, utmp2)
-	    attr = (Dwarf_Half) utmp2;
-	DECODE_LEB128_UWORD(abbrev_ptr, utmp2)
-	    attr_form = (Dwarf_Half) utmp2;
-
-	if (attr != 0)
-	    (labbr_count)++;
-
-    } while (abbrev_ptr < abbrev_section_end &&
-	     (attr != 0 || attr_form != 0));
-
-    if (abbrev_ptr > abbrev_section_end) {
-	_dwarf_error(dbg, error, DW_DLE_ABBREV_DECODE_ERROR);
-	return (DW_DLV_ERROR);
-    }
-
-    if (length != NULL)
-	*length = abbrev_ptr - dbg->de_debug_abbrev - offset;
-
-    *returned_abbrev = ret_abbrev;
-    *abbr_count = labbr_count;
-    return (DW_DLV_OK);
 }
 
 int
-dwarf_get_abbrev_code(Dwarf_Abbrev abbrev,
-		      Dwarf_Unsigned * returned_code,
-		      Dwarf_Error * error)
+dwarf_get_abbrev_tag(Dwarf_Abbrev abbrev, Dwarf_Half *return_tag,
+    Dwarf_Error *error)
 {
-    if (abbrev == NULL) {
-	_dwarf_error(NULL, error, DW_DLE_DWARF_ABBREV_NULL);
-	return (DW_DLV_ERROR);
-    }
 
-    *returned_code = abbrev->ab_code;
-    return (DW_DLV_OK);
+	if (abbrev == NULL || return_tag == NULL) {
+		DWARF_SET_ERROR(NULL, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	*return_tag = (Dwarf_Half) abbrev->ab_tag;
+
+	return (DW_DLV_OK);
 }
 
 int
-dwarf_get_abbrev_tag(Dwarf_Abbrev abbrev,
-		     Dwarf_Half * returned_tag, Dwarf_Error * error)
+dwarf_get_abbrev_code(Dwarf_Abbrev abbrev, Dwarf_Unsigned *return_code,
+    Dwarf_Error *error)
 {
-    if (abbrev == NULL) {
-	_dwarf_error(NULL, error, DW_DLE_DWARF_ABBREV_NULL);
-	return (DW_DLV_ERROR);
-    }
 
-    *returned_tag = abbrev->ab_tag;
-    return (DW_DLV_OK);
+	if (abbrev == NULL || return_code == NULL) {
+		DWARF_SET_ERROR(NULL, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	*return_code = abbrev->ab_entry;
+
+	return (DW_DLV_OK);
 }
 
-
 int
-dwarf_get_abbrev_children_flag(Dwarf_Abbrev abbrev,
-			       Dwarf_Signed * returned_flag,
-			       Dwarf_Error * error)
+dwarf_get_abbrev_children_flag(Dwarf_Abbrev abbrev, Dwarf_Signed *return_flag,
+    Dwarf_Error *error)
 {
-    if (abbrev == NULL) {
-	_dwarf_error(NULL, error, DW_DLE_DWARF_ABBREV_NULL);
-	return (DW_DLV_ERROR);
-    }
 
-    *returned_flag = abbrev->ab_has_child;
-    return (DW_DLV_OK);
+	if (abbrev == NULL || return_flag == NULL) {
+		DWARF_SET_ERROR(NULL, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	*return_flag = (Dwarf_Signed) abbrev->ab_children;
+
+	return (DW_DLV_OK);
 }
 
-
 int
-dwarf_get_abbrev_entry(Dwarf_Abbrev abbrev,
-		       Dwarf_Signed index,
-		       Dwarf_Half * returned_attr_num,
-		       Dwarf_Signed * form,
-		       Dwarf_Off * offset, Dwarf_Error * error)
+dwarf_get_abbrev_entry(Dwarf_Abbrev abbrev, Dwarf_Signed ndx,
+    Dwarf_Half *attr_num, Dwarf_Signed *form, Dwarf_Off *offset,
+    Dwarf_Error *error)
 {
-    Dwarf_Byte_Ptr abbrev_ptr;
-    Dwarf_Byte_Ptr abbrev_end;
-    Dwarf_Byte_Ptr mark_abbrev_ptr;
-    Dwarf_Half attr;
-    Dwarf_Half attr_form;
+	Dwarf_AttrDef ad;
+	int i;
 
-    if (index < 0)
-	return (DW_DLV_NO_ENTRY);
+	if (abbrev == NULL || attr_num == NULL || form == NULL ||
+	    offset == NULL) {
+		DWARF_SET_ERROR(NULL, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
 
-    if (abbrev == NULL) {
-	_dwarf_error(NULL, error, DW_DLE_DWARF_ABBREV_NULL);
-	return (DW_DLV_ERROR);
-    }
+	if (ndx < 0 || (uint64_t) ndx >= abbrev->ab_atnum) {
+		DWARF_SET_ERROR(NULL, error, DW_DLE_NO_ENTRY);
+		return (DW_DLV_NO_ENTRY);
+	}
 
-    if (abbrev->ab_code == 0) {
-	return (DW_DLV_NO_ENTRY);
-    }
+	ad = STAILQ_FIRST(&abbrev->ab_attrdef);
+	for (i = 0; i < ndx && ad != NULL; i++)
+		ad = STAILQ_NEXT(ad, ad_next);
 
-    if (abbrev->ab_dbg == NULL) {
-	_dwarf_error(NULL, error, DW_DLE_DBG_NULL);
-	return (DW_DLV_ERROR);
-    }
+	assert(ad != NULL);
 
-    abbrev_ptr = abbrev->ab_abbrev_ptr;
-    abbrev_end =
-	abbrev->ab_dbg->de_debug_abbrev +
-	abbrev->ab_dbg->de_debug_abbrev_size;
+	*attr_num = ad->ad_attrib;
+	*form = ad->ad_form;
+	*offset = ad->ad_offset;
 
-    for (attr = 1, attr_form = 1;
-	 index >= 0 && abbrev_ptr < abbrev_end && (attr != 0 ||
-						   attr_form != 0);
-	 index--) {
-	Dwarf_Unsigned utmp4;
-
-	mark_abbrev_ptr = abbrev_ptr;
-	DECODE_LEB128_UWORD(abbrev_ptr, utmp4)
-	    attr = (Dwarf_Half) utmp4;
-	DECODE_LEB128_UWORD(abbrev_ptr, utmp4)
-	    attr_form = (Dwarf_Half) utmp4;
-    }
-
-    if (abbrev_ptr >= abbrev_end) {
-	_dwarf_error(abbrev->ab_dbg, error, DW_DLE_ABBREV_DECODE_ERROR);
-	return (DW_DLV_ERROR);
-    }
-
-    if (index >= 0) {
-	return (DW_DLV_NO_ENTRY);
-    }
-
-    if (form != NULL)
-	*form = attr_form;
-    if (offset != NULL)
-	*offset = mark_abbrev_ptr - abbrev->ab_dbg->de_debug_abbrev;
-
-    *returned_attr_num = (attr);
-    return DW_DLV_OK;
+	return (DW_DLV_OK);
 }

@@ -1,159 +1,123 @@
 PROJECT(libdwarf)
 
-INCLUDE(CheckTypeSize)
-CHECK_TYPE_SIZE(uint64_t __UINT64_T)
-
-INCLUDE(CheckIncludeFile)
-INCLUDE(CheckSymbolExists)
-
-CHECK_SYMBOL_EXISTS(R_IA_64_DIR32LSB elf.h HAVE_R_IA_64_DIR32LSB)
-CHECK_SYMBOL_EXISTS(R_IA64_DIR32LSB elf.h HAVE_R_IA64_DIR32LSB)
-CHECK_INCLUDE_FILE(sys/ia64/elf.h HAVE_SYS_IA64_ELF_H)
-CHECK_INCLUDE_FILE(elf.h HAVE_ELF_H)
-CHECK_INCLUDE_FILE(elfaccess.h HAVE_ELFACCESS_H)
-
-CONFIGURE_FILE(
-  ${libdwarf_SOURCE_DIR}/libdwarf/config.h.cmake.in
-  ${libdwarf_BINARY_DIR}/config.h @ONLY
-  )
-
 INCLUDE_DIRECTORIES(BEFORE
-  ${PATHSCALE_INCLUDE_DIR}/libelf
-  ${libdwarf_SOURCE_DIR}/dwarfdump
+  ${PATHSCALE_INCLUDE_DIR}/libelf/lib
   ${libdwarf_SOURCE_DIR}/libdwarf
   ${libdwarf_BINARY_DIR}
   )
 
-ADD_EXECUTABLE(tag_tree_build
-               dwarfdump/tag_tree.c)
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pubnames.c
+COMMAND m4 -D SRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_nametbl.m4 ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pubnames.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pubnames.c
+)
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pubtypes.c
+COMMAND m4 -D SRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_nametbl.m4 ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pubtypes.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pubtypes.c
+)
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_weaks.c
+COMMAND m4 -D SRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_nametbl.m4 ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_weaks.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_weaks.c
+)
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_funcs.c
+COMMAND m4 -D SRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_nametbl.m4 ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_funcs.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_funcs.c
+)
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_vars.c
+COMMAND m4 -D SRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_nametbl.m4 ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_vars.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_vars.c
+)
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_types.c
+COMMAND m4 -D SRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_nametbl.m4 ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_types.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_types.c
+)
 
-ADD_EXECUTABLE(tag_attr_build
-               dwarfdump/tag_attr.c)
 
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_pubnames.c
+COMMAND m4 -D SRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_nametbl.m4 ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_pubnames.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_pubnames.c
+)
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_weaks.c
+COMMAND m4 -D SRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_nametbl.m4 ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_weaks.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_weaks.c
+)
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_funcs.c
+COMMAND m4 -D SRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_nametbl.m4 ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_funcs.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_funcs.c
+)
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_vars.c
+COMMAND m4 -D SRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_nametbl.m4 ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_vars.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_vars.c
+)
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_types.c
+COMMAND m4 -D SRCDIR=${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_nametbl.m4 ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_types.m4 > ${CMAKE_CURRENT_SOURCE_DIR}/dwarf_pro_types.c
+)
 
-GET_TARGET_PROPERTY(TAG_TREE_BUILD_EXE tag_tree_build LOCATION)
-GET_TARGET_PROPERTY(TAG_ATTR_BUILD_EXE tag_attr_build LOCATION)
-
-if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-
-ADD_EXECUTABLE(dwarf_names_gen dwarfdump/dwarf_names_gen.cxx)
-
-ADD_CUSTOM_COMMAND(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dwarf_names.c
-        COMMAND dwarf_names_gen ${CMAKE_CURRENT_SOURCE_DIR}/libdwarf/dwarf.h ${CMAKE_CURRENT_BINARY_DIR}/dwarf_names.c ${CMAKE_CURRENT_BINARY_DIR}/dwarf_names.h
-        DEPENDS dwarf_names_gen ${CMAKE_CURRENT_SOURCE_DIR}/libdwarf/dwarf.h
-        )
-
-ADD_CUSTOM_COMMAND(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/_tag_attr_table.in
-        COMMAND ${CMAKE_C_COMPILER} -xc -E -I${CMAKE_CURRENT_SOURCE_DIR}/libdwarf ${CMAKE_CURRENT_SOURCE_DIR}/dwarfdump/tag_attr.list > _tag_attr_table.in
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dwarfdump/tag_attr.list
-        )
-
-ADD_CUSTOM_COMMAND(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/_tag_attr_table.c
-        COMMAND ${TAG_ATTR_BUILD_EXE} < _tag_attr_table.in > _tag_attr_table.c
-        DEPENDS tag_attr_build _tag_attr_table.in
-        )
-
-ADD_CUSTOM_COMMAND(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/_tag_tree_table.in
-        COMMAND ${CMAKE_C_COMPILER} -xc -E -I${CMAKE_CURRENT_SOURCE_DIR}/libdwarf ${CMAKE_CURRENT_SOURCE_DIR}/dwarfdump/tag_tree.list > _tag_tree_table.in
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dwarfdump/tag_tree.list
-        )
-
-ADD_CUSTOM_COMMAND(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/_tag_tree_table.c
-        COMMAND ${TAG_TREE_BUILD_EXE} < _tag_tree_table.in > _tag_tree_table.c
-        DEPENDS tag_tree_build ${CMAKE_CURRENT_BINARY_DIR}/_tag_tree_table.in
-        )
-
-else()
-
-ADD_CUSTOM_COMMAND(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dwarf_names.c
-        COMMAND awk -f ${CMAKE_CURRENT_SOURCE_DIR}/dwarfdump/dwarf_names.awk ${CMAKE_CURRENT_SOURCE_DIR}/libdwarf/dwarf.h > ${CMAKE_CURRENT_BINARY_DIR}/dwarf_names.c
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/dwarfdump/dwarf_names.awk ${CMAKE_CURRENT_SOURCE_DIR}/libdwarf/dwarf.h
-        )
-
-ADD_CUSTOM_COMMAND(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/_tag_attr_table.c
-        COMMAND ${CMAKE_C_COMPILER} -xc -E -I${CMAKE_CURRENT_SOURCE_DIR}/libdwarf ${CMAKE_CURRENT_SOURCE_DIR}/dwarfdump/tag_attr.list | awk '!/^\#/ && !/^[ \\t]*$$/' | ${TAG_ATTR_BUILD_EXE}  > _tag_attr_table.c
-        DEPENDS tag_attr_build ${CMAKE_CURRENT_SOURCE_DIR}/dwarfdump/tag_attr.list
-        )
-
-ADD_CUSTOM_COMMAND(
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/_tag_tree_table.c
-        COMMAND ${CMAKE_C_COMPILER} -xc -E -I${CMAKE_CURRENT_SOURCE_DIR}/libdwarf ${CMAKE_CURRENT_SOURCE_DIR}/dwarfdump/tag_tree.list | awk '!/^\#/ && !/^[ \\t]*$$/' | ${TAG_TREE_BUILD_EXE} > _tag_tree_table.c
-        DEPENDS tag_tree_build ${CMAKE_CURRENT_SOURCE_DIR}/dwarfdump/tag_tree.list
-        )
-
-endif()
-
-SET(DWARF_DEPS ${CMAKE_CURRENT_BINARY_DIR}/_tag_attr_table.c     
-               ${CMAKE_CURRENT_BINARY_DIR}/_tag_tree_table.c)
-
-SET_SOURCE_FILES_PROPERTIES(dwarfdump/print_die.c
-                            PROPERTIES OBJECT_DEPENDS "${DWARF_DEPS}")
 
 
 path64_set_multiarch_sources(dwarf_sources COMMON
-            dwarfdump/dwarfdump.c
-            dwarfdump/makename.c
-            dwarfdump/tag_attr.c
-            dwarfdump/print_die.c
-            dwarfdump/print_reloc.c
-            dwarfdump/print_sections.c
-            libdwarf/dwarf_abbrev.c
-            libdwarf/dwarf_alloc.c
-            libdwarf/dwarf_arange.c
-            libdwarf/dwarf_die_deliv.c
-            libdwarf/dwarf_error.c
-            libdwarf/dwarf_form.c
-            libdwarf/dwarf_frame.c
-            libdwarf/dwarf_funcs.c
-            libdwarf/dwarf_global.c
-            libdwarf/dwarf_init_finish.c
-            libdwarf/dwarf_line.c
-            libdwarf/dwarf_macro.c
-            libdwarf/dwarf_loc.c
-            libdwarf/dwarf_query.c
-            libdwarf/dwarf_string.c
-            libdwarf/dwarf_stubs.c
-            libdwarf/dwarf_types.c
-            libdwarf/dwarf_util.c
-            libdwarf/dwarf_leb.c
-            libdwarf/dwarf_vars.c
-            libdwarf/dwarf_weaks.c
-            libdwarf/dwarf_addr_finder.c
-            libdwarf/dwarf_print_lines.c
-            libdwarf/dwarf_sort_line.c
-            libdwarf/pro_alloc.c
-            libdwarf/pro_arange.c
-            libdwarf/pro_die.c
-            libdwarf/pro_encode_nm.c
-            libdwarf/pro_error.c
-            libdwarf/pro_expr.c
-            libdwarf/pro_finish.c
-            libdwarf/pro_forms.c
-            libdwarf/pro_funcs.c
-            libdwarf/pro_frame.c
-            libdwarf/pro_init.c
-            libdwarf/pro_line.c
-            libdwarf/pro_reloc.c
-            libdwarf/pro_reloc_stream.c
-            libdwarf/pro_reloc_symbolic.c
-            libdwarf/pro_macinfo.c
-            libdwarf/pro_pubnames.c
-            libdwarf/pro_section.c
-            libdwarf/pro_types.c
-            libdwarf/pro_vars.c
-            libdwarf/pro_weaks.c
-            dwf_forms.c
-            dwf_frame.c
-            dwf_section.c
-            ${CMAKE_CURRENT_BINARY_DIR}/dwarf_names.c
-            )
+	libdwarf/dwarf_abbrev.c
+	libdwarf/dwarf_arange.c
+	libdwarf/dwarf_attr.c
+	libdwarf/dwarf_attrval.c
+	libdwarf/dwarf_cu.c
+	libdwarf/dwarf_dealloc.c
+	libdwarf/dwarf_die.c
+	libdwarf/dwarf_dump.c
+	libdwarf/dwarf_errmsg.c
+	libdwarf/dwarf_finish.c
+	libdwarf/dwarf_form.c
+	libdwarf/dwarf_frame.c
+	libdwarf/dwarf_funcs.c
+	libdwarf/dwarf_init.c
+	libdwarf/dwarf_lineno.c
+	libdwarf/dwarf_loclist.c
+	libdwarf/dwarf_macinfo.c
+	libdwarf/dwarf_pro_arange.c
+	libdwarf/dwarf_pro_attr.c
+	libdwarf/dwarf_pro_die.c
+	libdwarf/dwarf_pro_expr.c
+	libdwarf/dwarf_pro_finish.c
+	libdwarf/dwarf_pro_frame.c
+	libdwarf/dwarf_pro_funcs.c
+	libdwarf/dwarf_pro_init.c
+	libdwarf/dwarf_pro_lineno.c
+	libdwarf/dwarf_pro_macinfo.c
+	libdwarf/dwarf_pro_pubnames.c
+	libdwarf/dwarf_pro_reloc.c
+	libdwarf/dwarf_pro_sections.c
+	libdwarf/dwarf_pro_types.c
+	libdwarf/dwarf_pro_vars.c
+	libdwarf/dwarf_pro_weaks.c
+	libdwarf/dwarf_pubnames.c
+	libdwarf/dwarf_pubtypes.c
+	libdwarf/dwarf_ranges.c
+	libdwarf/dwarf_reloc.c
+	libdwarf/dwarf_seterror.c
+	libdwarf/dwarf_str.c
+	libdwarf/dwarf_types.c
+	libdwarf/dwarf_vars.c
+	libdwarf/dwarf_weaks.c
+	libdwarf/libdwarf.c
+	libdwarf/libdwarf_abbrev.c
+	libdwarf/libdwarf_arange.c
+	libdwarf/libdwarf_attr.c
+	libdwarf/libdwarf_die.c
+	libdwarf/libdwarf_error.c
+	libdwarf/libdwarf_elf_access.c
+	libdwarf/libdwarf_elf_init.c
+	libdwarf/libdwarf_frame.c
+	libdwarf/libdwarf_info.c
+	libdwarf/libdwarf_init.c
+	libdwarf/libdwarf_lineno.c
+	libdwarf/libdwarf_loc.c
+	libdwarf/libdwarf_loclist.c
+	libdwarf/libdwarf_macinfo.c
+	libdwarf/libdwarf_nametbl.c
+	libdwarf/libdwarf_ranges.c
+	libdwarf/libdwarf_reloc.c
+	libdwarf/libdwarf_rw.c
+	libdwarf/libdwarf_sections.c
+	libdwarf/libdwarf_str.c
+        )
 path64_add_multiarch_library(dwarf STATIC dwarf_sources)
-
-

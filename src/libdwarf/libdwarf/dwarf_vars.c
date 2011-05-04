@@ -1,114 +1,183 @@
-/*
- * Copyright 2005, 2006 PathScale, Inc.  All Rights Reserved.
+/*-
+ * Copyright (c) 2009 Kai Wang
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS `AS IS' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-/*
 
-  Copyright (C) 2000,2002,2004 Silicon Graphics, Inc.  All Rights Reserved.
+/*-
+ * Copyright (c) 2009 Kai Wang
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS `AS IS' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
-   Path64 is free software; you can redistribute it and/or modify it
-   under the terms of the GNU Lesser General Public License as published by
-   the Free Software Foundation version 2.1
+#include "_libdwarf.h"
 
-   Path64 is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
+/* WARNING: GENERATED FROM /home/rdivacky/Path64-hmpp/src/libdwarf2/dwarf_vars.m4. */
 
-   You should have received a copy of the GNU General Public License
-   along with Path64; see the file COPYING.  If not, write to the Free
-   Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
-   02110-1301, USA.
-
-   Special thanks goes to SGI for their continued support to open source
-
-*/
-
-
-
-#include "config.h"
-#include "dwarf_incl.h"
-#include <stdio.h>
-#include "dwarf_vars.h"
-#include "dwarf_global.h"
-
-int
-dwarf_get_vars(Dwarf_Debug dbg,
-	       Dwarf_Var ** vars,
-	       Dwarf_Signed * ret_var_count, Dwarf_Error * error)
-{
-    int res;
-
-    res =
-       _dwarf_load_section(dbg,
-		           dbg->de_debug_varnames_index,
-			   &dbg->de_debug_varnames,
-		           error);
-    if (res != DW_DLV_OK) {
-	return res;
-    }
-
-    return _dwarf_internal_get_pubnames_like_data(dbg, dbg->de_debug_varnames, dbg->de_debug_varnames_size, (Dwarf_Global **) vars,	/* type 
-																	   punning,
-																	   Dwarf_Type 
-																	   is never
-																	   a
-																	   completed 
-																	   type */
-						  ret_var_count,
-						  error,
-						  DW_DLA_VAR_CONTEXT,
-						  DW_DLE_DEBUG_VARNAMES_LENGTH_BAD,
-						  DW_DLE_DEBUG_VARNAMES_VERSION_ERROR);
-}
 
 
 int
-dwarf_varname(Dwarf_Var var_in, char **ret_varname, Dwarf_Error * error)
+dwarf_get_vars(Dwarf_Debug dbg, Dwarf_Var **vars,
+    Dwarf_Signed *ret_count, Dwarf_Error *error)
 {
-    Dwarf_Global var = (Dwarf_Global) var_in;
 
-    if (var == NULL) {
-	_dwarf_error(NULL, error, DW_DLE_VAR_NULL);
-	return (DW_DLV_ERROR);
-    }
+	if (dbg == NULL || vars == NULL || ret_count == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
 
-    *ret_varname = (char *) (var->gl_name);
-    return DW_DLV_OK;
+	if (dbg->dbg_vars == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
+		return (DW_DLV_NO_ENTRY);
+	}
+
+	*vars = dbg->dbg_vars->ns_array;
+	*ret_count = dbg->dbg_vars->ns_len;
+
+	return (DW_DLV_OK);
 }
-
 
 int
-dwarf_var_die_offset(Dwarf_Var var_in,
-		     Dwarf_Off * returned_offset, Dwarf_Error * error)
+dwarf_varname(Dwarf_Var var, char **ret_name, Dwarf_Error *error)
 {
-    Dwarf_Global var = (Dwarf_Global) var_in;
+	Dwarf_Debug dbg;
 
-    return dwarf_global_die_offset(var, returned_offset, error);
+	dbg = var != NULL ? var->np_nt->nt_cu->cu_dbg : NULL;
 
+	if (var == NULL || ret_name == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	*ret_name = var->np_name;
+
+	return (DW_DLV_OK);
 }
-
 
 int
-dwarf_var_cu_offset(Dwarf_Var var_in,
-		    Dwarf_Off * returned_offset, Dwarf_Error * error)
+dwarf_var_die_offset(Dwarf_Var var, Dwarf_Off *ret_offset,
+    Dwarf_Error *error)
 {
-    Dwarf_Global var = (Dwarf_Global) var_in;
+	Dwarf_NameTbl nt;
+	Dwarf_Debug dbg;
 
-    return dwarf_global_cu_offset(var, returned_offset, error);
+	dbg = var != NULL ? var->np_nt->nt_cu->cu_dbg : NULL;
+
+	if (var == NULL || ret_offset == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	nt = var->np_nt;
+	assert(nt != NULL);
+
+	*ret_offset = nt->nt_cu_offset + var->np_offset;
+
+	return (DW_DLV_OK);
 }
-
 
 int
-dwarf_var_name_offsets(Dwarf_Var var_in,
-		       char **returned_name,
-		       Dwarf_Off * die_offset,
-		       Dwarf_Off * cu_offset, Dwarf_Error * error)
+dwarf_var_cu_offset(Dwarf_Var var, Dwarf_Off *ret_offset,
+    Dwarf_Error *error)
 {
-    Dwarf_Global var = (Dwarf_Global) var_in;
+	Dwarf_NameTbl nt;
+	Dwarf_Debug dbg;
 
-    return
-	dwarf_global_name_offsets(var,
-				  returned_name, die_offset, cu_offset,
-				  error);
+	dbg = var != NULL ? var->np_nt->nt_cu->cu_dbg : NULL;
+
+	if (var == NULL || ret_offset == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	nt = var->np_nt;
+	assert(nt != NULL);
+
+	*ret_offset = nt->nt_cu_offset;
+
+	return (DW_DLV_OK);
 }
+
+int
+dwarf_var_name_offsets(Dwarf_Var var, char **ret_name, Dwarf_Off *die_offset,
+    Dwarf_Off *cu_offset, Dwarf_Error *error)
+{
+	Dwarf_CU cu;
+	Dwarf_Die die;
+	Dwarf_Debug dbg;
+	Dwarf_NameTbl nt;
+
+	dbg = var != NULL ? var->np_nt->nt_cu->cu_dbg : NULL;
+
+	if (var == NULL || ret_name == NULL || die_offset == NULL ||
+	    cu_offset == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	nt = var->np_nt;
+	assert(nt != NULL);
+
+	cu = nt->nt_cu;
+	assert(cu != NULL);
+
+	die = STAILQ_FIRST(&cu->cu_die);
+	assert(die != NULL);
+
+	*ret_name = var->np_name;
+	*die_offset = nt->nt_cu_offset + var->np_offset;
+	*cu_offset = die->die_offset;
+
+	return (DW_DLV_OK);
+}
+
+void
+dwarf_vars_dealloc(Dwarf_Debug dbg, Dwarf_Var *vars, Dwarf_Signed count)
+{
+
+	(void) dbg;
+	(void) vars;
+	(void) count;
+}
+

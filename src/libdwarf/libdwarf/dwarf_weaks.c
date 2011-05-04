@@ -1,113 +1,183 @@
-/*
- * Copyright 2005, 2006 PathScale, Inc.  All Rights Reserved.
+/*-
+ * Copyright (c) 2009 Kai Wang
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS `AS IS' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-/*
 
-  Copyright (C) 2000,2002,2004 Silicon Graphics, Inc.  All Rights Reserved.
+/*-
+ * Copyright (c) 2009 Kai Wang
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS `AS IS' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
-   Path64 is free software; you can redistribute it and/or modify it
-   under the terms of the GNU Lesser General Public License as published by
-   the Free Software Foundation version 2.1
+#include "_libdwarf.h"
 
-   Path64 is distributed in the hope that it will be useful, but WITHOUT
-   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
-   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
-   License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with Path64; see the file COPYING.  If not, write to the Free
-   Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
-   02110-1301, USA.
-
-   Special thanks goes to SGI for their continued support to open source
-
-*/
-
-
-
-#include "config.h"
-#include "dwarf_incl.h"
-#include <stdio.h>
-#include "dwarf_weaks.h"
-#include "dwarf_global.h"
-
-int
-dwarf_get_weaks(Dwarf_Debug dbg,
-		Dwarf_Weak ** weaks,
-		Dwarf_Signed * ret_weak_count, Dwarf_Error * error)
-{
-    int res;
-
-    res =
-       _dwarf_load_section(dbg,
-		           dbg->de_debug_weaknames_index,
-			   &dbg->de_debug_weaknames,
-		           error);
-    if (res != DW_DLV_OK) {
-	return res;
-    }
-
-    return _dwarf_internal_get_pubnames_like_data(dbg, dbg->de_debug_weaknames, dbg->de_debug_weaknames_size, (Dwarf_Global **) weaks,	/* type 
-																	   punning,
-																	   Dwarf_Type 
-																	   is never
-																	   a
-																	   completed 
-																	   type */
-						  ret_weak_count,
-						  error,
-						  DW_DLA_WEAK_CONTEXT,
-						  DW_DLE_DEBUG_WEAKNAMES_LENGTH_BAD,
-						  DW_DLE_DEBUG_WEAKNAMES_VERSION_ERROR);
-
-}
+/* WARNING: GENERATED FROM /home/rdivacky/Path64-hmpp/src/libdwarf2/dwarf_weaks.m4. */
 
 
 
 int
-dwarf_weakname(Dwarf_Weak weak_in, char **ret_name, Dwarf_Error * error)
+dwarf_get_weaks(Dwarf_Debug dbg, Dwarf_Weak **weaks,
+    Dwarf_Signed *ret_count, Dwarf_Error *error)
 {
-    Dwarf_Global weak = (Dwarf_Global) weak_in;
 
-    if (weak == NULL) {
-	_dwarf_error(NULL, error, DW_DLE_WEAK_NULL);
-	return (DW_DLV_ERROR);
-    }
-    *ret_name = (char *) (weak->gl_name);
-    return DW_DLV_OK;
+	if (dbg == NULL || weaks == NULL || ret_count == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	if (dbg->dbg_weaks == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
+		return (DW_DLV_NO_ENTRY);
+	}
+
+	*weaks = dbg->dbg_weaks->ns_array;
+	*ret_count = dbg->dbg_weaks->ns_len;
+
+	return (DW_DLV_OK);
 }
-
 
 int
-dwarf_weak_die_offset(Dwarf_Weak weak_in,
-		      Dwarf_Off * weak_off, Dwarf_Error * error)
+dwarf_weakname(Dwarf_Weak weak, char **ret_name, Dwarf_Error *error)
 {
-    Dwarf_Global weak = (Dwarf_Global) weak_in;
+	Dwarf_Debug dbg;
 
-    return dwarf_global_die_offset(weak, weak_off, error);
+	dbg = weak != NULL ? weak->np_nt->nt_cu->cu_dbg : NULL;
+
+	if (weak == NULL || ret_name == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	*ret_name = weak->np_name;
+
+	return (DW_DLV_OK);
 }
-
 
 int
-dwarf_weak_cu_offset(Dwarf_Weak weak_in,
-		     Dwarf_Off * weak_off, Dwarf_Error * error)
+dwarf_weak_die_offset(Dwarf_Weak weak, Dwarf_Off *ret_offset,
+    Dwarf_Error *error)
 {
-    Dwarf_Global weak = (Dwarf_Global) weak_in;
+	Dwarf_NameTbl nt;
+	Dwarf_Debug dbg;
 
-    return dwarf_global_cu_offset(weak, weak_off, error);
+	dbg = weak != NULL ? weak->np_nt->nt_cu->cu_dbg : NULL;
+
+	if (weak == NULL || ret_offset == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	nt = weak->np_nt;
+	assert(nt != NULL);
+
+	*ret_offset = nt->nt_cu_offset + weak->np_offset;
+
+	return (DW_DLV_OK);
 }
-
 
 int
-dwarf_weak_name_offsets(Dwarf_Weak weak_in,
-			char **weak_name,
-			Dwarf_Off * die_offset,
-			Dwarf_Off * cu_offset, Dwarf_Error * error)
+dwarf_weak_cu_offset(Dwarf_Weak weak, Dwarf_Off *ret_offset,
+    Dwarf_Error *error)
 {
-    Dwarf_Global weak = (Dwarf_Global) weak_in;
+	Dwarf_NameTbl nt;
+	Dwarf_Debug dbg;
 
-    return dwarf_global_name_offsets(weak,
-				     weak_name,
-				     die_offset, cu_offset, error);
+	dbg = weak != NULL ? weak->np_nt->nt_cu->cu_dbg : NULL;
+
+	if (weak == NULL || ret_offset == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	nt = weak->np_nt;
+	assert(nt != NULL);
+
+	*ret_offset = nt->nt_cu_offset;
+
+	return (DW_DLV_OK);
 }
+
+int
+dwarf_weak_name_offsets(Dwarf_Weak weak, char **ret_name, Dwarf_Off *die_offset,
+    Dwarf_Off *cu_offset, Dwarf_Error *error)
+{
+	Dwarf_CU cu;
+	Dwarf_Die die;
+	Dwarf_Debug dbg;
+	Dwarf_NameTbl nt;
+
+	dbg = weak != NULL ? weak->np_nt->nt_cu->cu_dbg : NULL;
+
+	if (weak == NULL || ret_name == NULL || die_offset == NULL ||
+	    cu_offset == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	nt = weak->np_nt;
+	assert(nt != NULL);
+
+	cu = nt->nt_cu;
+	assert(cu != NULL);
+
+	die = STAILQ_FIRST(&cu->cu_die);
+	assert(die != NULL);
+
+	*ret_name = weak->np_name;
+	*die_offset = nt->nt_cu_offset + weak->np_offset;
+	*cu_offset = die->die_offset;
+
+	return (DW_DLV_OK);
+}
+
+void
+dwarf_weaks_dealloc(Dwarf_Debug dbg, Dwarf_Weak *weaks, Dwarf_Signed count)
+{
+
+	(void) dbg;
+	(void) weaks;
+	(void) count;
+}
+
