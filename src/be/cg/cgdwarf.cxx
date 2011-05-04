@@ -109,6 +109,10 @@
 #include <alloca.h>
 #endif
 
+extern "C" {
+#include "_libdwarf.h"
+}
+
 BOOL Trace_Dwarf;
 
 #define cast_to_LABEL(x) ((LABEL_IDX) (uintptr_t) (void *)x)
@@ -561,27 +565,45 @@ put_const_attribute (DST_CONST_VALUE cval, Dwarf_Half ref_attr, Dwarf_P_Die die)
     case DST_FORM_STRING:
       put_string (DST_CONST_VALUE_form_string(cval), ref_attr, die);
       break;
-    // Bug 1188
+    // Bug 1188 - reverted for now
     case DST_FORM_DATA1:
+      dwarf_add_AT_const_value_unsignedint(die, DST_CONST_VALUE_form_data1(cval),
+                                           &dw_error);
+#if 0
       dwf_add_AT_unsigned_const_ext (dw_dbg, die, ref_attr,
 				     DST_CONST_VALUE_form_data1(cval),
 				     &dw_error, 1);
+#endif
       break;
     case DST_FORM_DATA2:
+      dwarf_add_AT_const_value_unsignedint(die, DST_CONST_VALUE_form_data2(cval),
+                                           &dw_error);
+#if 0
       dwf_add_AT_unsigned_const_ext (dw_dbg, die, ref_attr,
 				     DST_CONST_VALUE_form_data2(cval),
 				     &dw_error, 2);
+#endif
       break;
     case DST_FORM_DATA4:
+      dwarf_add_AT_const_value_unsignedint(die, DST_CONST_VALUE_form_data4(cval),
+                                           &dw_error);
+#if 0
       dwf_add_AT_unsigned_const_ext (dw_dbg, die, ref_attr,
 				     DST_CONST_VALUE_form_data4(cval),
 				     &dw_error, 4);
+#endif
       break;
     case DST_FORM_DATA8:
+      dwarf_add_AT_const_value_unsignedint(die, DST_CONST_VALUE_form_data8(cval),
+                                           &dw_error);
+#if 0
       dwf_add_AT_unsigned_const_ext (dw_dbg, die, ref_attr,
 				     DST_CONST_VALUE_form_data8(cval),
 				     &dw_error, 8);
+#endif
       break;
+      // TODO: how to  do this in bsd libdwarf?
+#if 0
     case DST_FORM_DATAC4:
       dwf_add_AT_complex_const (dw_dbg, die, ref_attr,
 				DST_CONST_VALUE_form_crdata4(cval), 
@@ -594,6 +616,7 @@ put_const_attribute (DST_CONST_VALUE cval, Dwarf_Half ref_attr, Dwarf_P_Die die)
 				DST_CONST_VALUE_form_cidata8(cval), 
 				&dw_error, 8);
       break;
+#endif
   }
 }
 
