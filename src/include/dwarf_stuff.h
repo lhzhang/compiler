@@ -87,6 +87,7 @@ extern Dwarf_Bool	generate_m64_dwarf;
 #define PIC_NONCPLUS_DW_CIE_AUGMENTER_STRING_V0 "zR"
 #endif // KEY
 
+#if 0
 // Bug 1188
 Dwarf_P_Attribute dwf_add_AT_unsigned_const_ext(Dwarf_P_Debug /*dbg*/, 
     Dwarf_P_Die 	/*ownerdie*/, 
@@ -176,6 +177,7 @@ Dwarf_Unsigned dwf_add_ehframe_info(
     Dwarf_Signed   	/*offset_into_exception_tables*/,
     Dwarf_Unsigned 	/*exception_table_symbol*/,
     Dwarf_Error*	/*error*/);
+#endif
 
 #if defined(BUILD_OS_DARWIN)
     /* Mach-O x86 linker requires local "L" labels in Dwarf sections */
