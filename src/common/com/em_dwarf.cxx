@@ -196,7 +196,7 @@ Em_Dwarf_Add_Include (UINT16 incl_idx, const char *name)
   Dwarf_Unsigned dwarf_idx;
 
   Increase_Incl_Table_Size (incl_idx);
-  dwarf_idx = dwarf_add_directory_decl (dw_dbg, name, &dw_error);
+  dwarf_idx = dwarf_add_directory_decl (dw_dbg, (char *)name, &dw_error);
   incl_table[incl_idx].dwarf_idx = dwarf_idx;
   incl_table[incl_idx].path = name;
 }
@@ -238,7 +238,7 @@ Em_Dwarf_Add_File (
   Increase_File_Table_Size (file_idx);
   dwarf_idx = dwarf_add_file_decl (
 			dw_dbg, 
-			name, 
+			(char *)name, 
 			incl_table[incl_idx].dwarf_idx, 
 			modification_time,
 			file_size,
@@ -378,7 +378,7 @@ Em_Dwarf_Begin (BOOL is_64bit, BOOL dwarf_trace, BOOL is_cplus,
 // reconfigurability and interruption function.
 
   cie_index = dwf_add_frame_cie (dw_dbg,
-				 cie_augmenter,
+				 (char *)cie_augmenter,
 				 code_alignent_factor,
 				 data_alignment_factor,
 				 return_reg,
