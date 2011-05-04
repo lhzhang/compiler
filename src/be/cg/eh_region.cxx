@@ -82,7 +82,8 @@
 #endif
 
 extern "C" {
-#include "pro_encode_nm.h"
+//#include "pro_encode_nm.h"
+#include "_libdwarf.h"
 }
 
 /*
@@ -1081,11 +1082,15 @@ Create_Type_Filter_Map (void)
 static int
 sizeof_signed_leb128 (int value)
 {
+  // TODO: how to do this with bsd libdwarf? do we have to at all?
+  return ENCODE_SPACE_NEEDED;
+#if 0
   char buff[ENCODE_SPACE_NEEDED];
   int size;
   int res = _dwarf_pro_encode_signed_leb128_nm (value, &size, buff, sizeof(buff));
   FmtAssert (res == DW_DLV_OK, ("Encoding for exception table failed"));
   return size;
+#endif
 }
 
 static void
