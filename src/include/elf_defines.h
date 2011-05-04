@@ -1382,4 +1382,7 @@ typedef enum {
 #define PDMF_SIZE       0x20
 #define PDMF_Qualifiers 0x0f
 
+/* Needed for libdwarf */
+#define R_386_32                1
+
 #endif /* !ELF_DEFINES_H_ */
