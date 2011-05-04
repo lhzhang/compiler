@@ -334,7 +334,7 @@ ENDIF()
 if(SUPPORT_HASH_STYLE_GNU_BUILD AND SUPPORT_HASH_STYLE_GNU EQUAL 0)
     set(hash_style_supported "--hash-style=gnu")
 else()
-    set(hash_style_supported "")
+    set(hash_style_supported " ")
 endif()
 
 add_driver("" "${hash_style_supported}")
