@@ -75,6 +75,7 @@ SET(LIBELF_HFILES
 	libelf.h
 	nlist.h
 	sys_elf.h
+        gelf.h
    )
 
 SET(LDIRT dwarf.h)
