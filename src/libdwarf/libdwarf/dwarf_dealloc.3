@@ -1,0 +1,133 @@
+.\" Copyright (c) 2009,2010 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id$
+.\"
+.Dd April 28, 2010
+.Os
+.Dt DWARF_DEALLOC 3
+.Sh NAME
+.Nm dwarf_dealloc ,
+.Nm dwarf_funcs_dealloc ,
+.Nm dwarf_globals_dealloc ,
+.Nm dwarf_pubtypes_dealloc ,
+.Nm dwarf_ranges_dealloc ,
+.Nm dwarf_srclines_dealloc ,
+.Nm dwarf_types_dealloc ,
+.Nm dwarf_vars_dealloc ,
+.Nm dwarf_weaks_dealloc
+.Nd release resources
+.Sh LIBRARY
+.Lb libdwarf
+.Sh SYNOPSIS
+.In libdwarf.h
+.Ft void
+.Fo dwarf_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Ptr ptr"
+.Fa "Dwarf_Unsigned type"
+.Fc
+.Ft void
+.Fo dwarf_funcs_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Func *funcs"
+.Fa "Dwarf_Signed funccount"
+.Fc
+.Ft void
+.Fo dwarf_globals_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Global *globals"
+.Fa "Dwarf_Signed globalcount"
+.Fc
+.Ft void
+.Fo dwarf_pubtypes_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Type *pubtypes"
+.Fa "Dwarf_Signed pubtypecount"
+.Fc
+.Ft void
+.Fo dwarf_ranges_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Ranges *ranges"
+.Fa "Dwarf_Signed rangecount"
+.Fc
+.Ft void
+.Fo dwarf_srclines_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Line *lines"
+.Fa "Dwarf_Signed linecount"
+.Fc
+.Ft void
+.Fo dwarf_types_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Type *types"
+.Fa "Dwarf_Signed typecount"
+.Fc
+.Ft void
+.Fo dwarf_vars_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Var *vars"
+.Fa "Dwarf_Signed varcount"
+.Fc
+.Ft void
+.Fo dwarf_weaks_dealloc
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Weak *weaks"
+.Fa "Dwarf_Signed weakcount"
+.Fc
+.Sh DESCRIPTION
+The functions
+.Fn dwarf_dealloc ,
+.Fn dwarf_funcs_dealloc ,
+.Fn dwarf_globals_dealloc ,
+.Fn dwarf_pubtypes_dealloc ,
+.Fn dwarf_ranges_dealloc ,
+.Fn dwarf_srclines_dealloc ,
+.Fn dwarf_types_dealloc ,
+.Fn dwarf_vars_dealloc
+and
+.Fn dwarf_weaks_dealloc
+are provided for compatibility with other implementations of the
+DWARF(3) API.
+Due to the way memory is managed in the current implementation, these
+functions are effectively no-ops.
+.Pp
+See
+.Xr dwarf 3
+for more information about the memory management scheme in this
+implementation of the DWARF(3) API.
+.Sh RETURN VALUES
+Functions
+.Fn dwarf_dealloc ,
+.Fn dwarf_funcs_dealloc ,
+.Fn dwarf_globals_dealloc ,
+.Fn dwarf_pubtypes_dealloc ,
+.Fn dwarf_ranges_dealloc ,
+.Fn dwarf_srclines_dealloc ,
+.Fn dwarf_types_dealloc ,
+.Fn dwarf_vars_dealloc
+and
+.Fn dwarf_weaks_dealloc
+have no return value.
+.Sh SEE ALSO
+.Xr dwarf 3
