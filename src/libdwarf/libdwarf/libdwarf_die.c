@@ -427,6 +427,18 @@ _dwarf_die_gen(Dwarf_P_Debug dbg, Dwarf_CU cu, Dwarf_Rel_Section drs,
 
 	die = dbg->dbgp_root_die;
 
+	/* Add DW_AT_sibling to those DIEs with children. */
+	Dwarf_Die first_child = die->die_child;
+	while (first_child && first_child->die_right) {
+		if (first_child->die_child)
+			dwarf_add_AT_reference(dbg,
+				first_child,
+				DW_AT_sibling,
+				first_child->die_right, error);
+		first_child = first_child->die_right;
+	}
+
+
 	/*
 	 * Insert a DW_AT_stmt_list attribute into root DIE, if there are
 	 * line number information.
