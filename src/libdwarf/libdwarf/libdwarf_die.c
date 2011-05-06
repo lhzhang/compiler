@@ -207,64 +207,75 @@ _dwarf_die_link(Dwarf_P_Die die, Dwarf_P_Die parent, Dwarf_P_Die child,
 
 		/* Disconnect from old parent. */
 		if (die->die_parent) {
-			if (die->die_parent == parent)
-				return;
-			die->die_parent->die_child = NULL;
-			die->die_parent = NULL;
+			if (die->die_parent != parent) {
+				die->die_parent->die_child = NULL;
+				die->die_parent = NULL;
+                        }
 		}
+
+                /* Find the last child of this parent. */
+		Dwarf_P_Die last_child = parent->die_child;
+                if (last_child)
+                  while (last_child->die_right != NULL)
+                    last_child = last_child->die_right;
 
 		/* Connect to new parent. */
 		die->die_parent = parent;
-		parent->die_child = die;
-		return;
+
+		/* Maintain the siblings if the parent has children,
+                 * otherwise set the first child. */
+		if (last_child) {
+			assert(last_child->die_right == NULL);
+
+			last_child->die_right = die;
+			die->die_left = last_child;
+		} else
+                  parent->die_child = die;
 	}
 
 	if (child) {
 
 		/* Disconnect from old child. */
 		if (die->die_child) {
-			if (die->die_child == child)
-				return;
-			die->die_child->die_parent = NULL;
-			die->die_child = NULL;
+			if (die->die_child != child) {
+				die->die_child->die_parent = NULL;
+				die->die_child = NULL;
+			}
 		}
 
 		/* Connect to new child. */
 		die->die_child = child;
 		child->die_parent = die;
-		return;
 	}
 
 	if (left_sibling) {
 
 		/* Disconnect from old left sibling. */
 		if (die->die_left) {
-			if (die->die_left == left_sibling)
-				return;
-			die->die_left->die_right = NULL;
-			die->die_left = NULL;
+			if (die->die_left != left_sibling) {
+				die->die_left->die_right = NULL;
+				die->die_left = NULL;
+			}
 		}
 
 		/* Connect to new right sibling. */
 		die->die_left = left_sibling;
 		left_sibling->die_right = die;
-		return;
 	}
 
 	if (right_sibling) {
 
 		/* Disconnect from old right sibling. */
 		if (die->die_right) {
-			if (die->die_right == right_sibling)
-				return;
-			die->die_right->die_left = NULL;
-			die->die_right = NULL;
+			if (die->die_right != right_sibling) {
+				die->die_right->die_left = NULL;
+				die->die_right = NULL;
+			}
 		}
 
 		/* Connect to new right sibling. */
 		die->die_right = right_sibling;
 		right_sibling->die_left = die;
-		return;
 	}
 }
 
