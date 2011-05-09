@@ -200,6 +200,7 @@ void
 _dwarf_die_link(Dwarf_P_Die die, Dwarf_P_Die parent, Dwarf_P_Die child,
     Dwarf_P_Die left_sibling, Dwarf_P_Die right_sibling)
 {
+	Dwarf_P_Die last_child;
 
 	assert(die != NULL);
 
@@ -208,29 +209,33 @@ _dwarf_die_link(Dwarf_P_Die die, Dwarf_P_Die parent, Dwarf_P_Die child,
 		/* Disconnect from old parent. */
 		if (die->die_parent) {
 			if (die->die_parent != parent) {
-				die->die_parent->die_child = NULL;
+				if (die->die_parent->die_child == die)
+					die->die_parent->die_child = NULL;
 				die->die_parent = NULL;
-                        }
+                     }
 		}
 
-                /* Find the last child of this parent. */
-		Dwarf_P_Die last_child = parent->die_child;
-                if (last_child)
-                  while (last_child->die_right != NULL)
-                    last_child = last_child->die_right;
+		/* Find the last child of this parent. */
+		last_child = parent->die_child;
+		if (last_child) {
+			while (last_child->die_right != NULL)
+				last_child = last_child->die_right;
+		}
 
 		/* Connect to new parent. */
 		die->die_parent = parent;
 
-		/* Maintain the siblings if the parent has children,
-                 * otherwise set the first child. */
+		/*
+		 * Attach this DIE to the end of sibling list. If new
+		 * parent doesn't have any child, set this DIE as the
+		 * first child.
+		 */
 		if (last_child) {
 			assert(last_child->die_right == NULL);
-
 			last_child->die_right = die;
 			die->die_left = last_child;
 		} else
-                  parent->die_child = die;
+			parent->die_child = die;
 	}
 
 	if (child) {
