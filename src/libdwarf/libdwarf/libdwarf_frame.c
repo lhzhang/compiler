@@ -1445,10 +1445,15 @@ _dwarf_frame_gen_cie(Dwarf_P_Debug dbg, Dwarf_P_Section ds, Dwarf_P_Cie cie,
 	if (cie->cie_initinst != NULL)
 		RCHECK(WRITE_BLOCK(cie->cie_initinst, cie->cie_instlen));
 
-	/* TODO padding? */
+	/* Padding. */
+	Dwarf_Unsigned actual_len = ds->ds_size;
+	// XXX: what is "addressing unit size"?
+	Dwarf_Unsigned len = actual_len + (actual_len % 4);
+	while (actual_len++ < len)
+		RCHECK(WRITE_VALUE(DW_CFA_nop, 1));
 
 	/* Fill in the length field. */
-	cie->cie_length = ds->ds_size - 4;
+	cie->cie_length = len - 4;
 	dbg->write(ds->ds_data, &offset, cie->cie_length, 4);
 	
 	return (DW_DLE_NONE);
@@ -1462,14 +1467,17 @@ _dwarf_frame_gen_fde(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
     Dwarf_Rel_Section drs, Dwarf_P_Fde fde, Dwarf_Error *error)
 {
 	int ret;
+        Dwarf_Unsigned actual_len = fde->fde_instlen + 2 * dbg->dbg_pointer_size +
+                                    dbg->dbg_offset_size;
+	// XXX: 64bit only
+	Dwarf_Unsigned len = actual_len + (actual_len % 8);
 
 	assert(dbg != NULL && ds != NULL && drs != NULL);
 	assert(fde != NULL && fde->fde_cie != NULL);
 
 	fde->fde_offset = ds->ds_size;
         // XXX: is this correct?
-	fde->fde_length = fde->fde_instlen + 2 * dbg->dbg_pointer_size +
-                          dbg->dbg_offset_size;
+	fde->fde_length = len;
 	fde->fde_cieoff = fde->fde_cie->cie_offset;
 
 	/* Length placeholder. */
@@ -1498,6 +1506,10 @@ _dwarf_frame_gen_fde(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
 
 	/* Write FDE frame instructions. */
 	RCHECK(WRITE_BLOCK(fde->fde_inst, fde->fde_instlen));
+
+	/* Padding. */
+	while (actual_len++ < len)
+		RCHECK(WRITE_VALUE(DW_CFA_nop, 1));
 
 	return (DW_DLE_NONE);
 
