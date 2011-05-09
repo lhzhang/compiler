@@ -1461,7 +1461,9 @@ _dwarf_frame_gen_fde(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
 	assert(fde != NULL && fde->fde_cie != NULL);
 
 	fde->fde_offset = ds->ds_size;
-	fde->fde_length = 0;
+        // XXX: is this correct?
+	fde->fde_length = fde->fde_instlen + 2 * dbg->dbg_pointer_size +
+                          dbg->dbg_offset_size;
 	fde->fde_cieoff = fde->fde_cie->cie_offset;
 
 	/* Length placeholder. */
