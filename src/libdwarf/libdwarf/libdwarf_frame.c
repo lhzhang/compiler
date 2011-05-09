@@ -1333,7 +1333,8 @@ _dwarf_frame_fde_add_inst(Dwarf_P_Fde fde, Dwarf_Small op, Dwarf_Unsigned val1,
 	}
 	assert(fde->fde_instcap != 0);
 
-	RCHECK(WRITE_VALUE(op, 1));
+	if (op != DW_CFA_offset)
+		RCHECK(WRITE_VALUE(op, 1));
 	if (op == DW_CFA_nop)
 		return (DW_DLE_NONE);
 
@@ -1346,7 +1347,12 @@ _dwarf_frame_fde_add_inst(Dwarf_P_Fde fde, Dwarf_Small op, Dwarf_Unsigned val1,
 		case DW_CFA_restore:
 			break;
 		case DW_CFA_offset:
-			RCHECK(WRITE_ULEB128(val1));
+			if (val1 > 0x3f) {
+				low6 = DW_CFA_offset_extended;
+				break;
+			}
+			RCHECK(WRITE_VALUE(op | val1, 1));
+			RCHECK(WRITE_ULEB128(val2));
 			break;
 		default:
 			DWARF_SET_ERROR(dbg, error,
