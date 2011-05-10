@@ -779,7 +779,7 @@ void Em_Dwarf_Process_PU (Dwarf_Unsigned begin_label,
     // TODO: how to do this in bsd libdwarf
 #if 0
   if (eh_offset == DW_DLX_NO_EH_OFFSET)	/* no exception handler */
-  	dwf_add_ehframe_fde_b (dw_dbg, eh_fde, PU_die, 
+  	dwarf_add_frame_fde_b (dw_dbg, eh_fde, PU_die,
                                eh_cie_index, 
 			       begin_offset,
 			       0 /* dummy code length */,
