@@ -420,12 +420,14 @@ attr_gen:
 	}
 
 null_die:
-	/* Write a null DIE indicating the end of current level. */
-	ret = _dwarf_write_uleb128_alloc(&ds->ds_data, &ds->ds_cap,
-	    &ds->ds_size, 0, error);
-	if (ret != DW_DLE_NONE)
-		return (ret);
-
+	/* Only write the null die at the right-most leaf child. */
+	if (die->die_child == NULL && die->die_right == NULL) {
+		/* Write a null DIE indicating the end of current level. */
+		ret = _dwarf_write_uleb128_alloc(&ds->ds_data, &ds->ds_cap,
+		    &ds->ds_size, 0, error);
+		if (ret != DW_DLE_NONE)
+			return (ret);
+	}
 	return (DW_DLE_NONE);
 }
 
