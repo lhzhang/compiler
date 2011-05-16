@@ -110,6 +110,7 @@
 #include "cg_dep_graph.h"
 #include "cg_dep_graph_util.h"
 #include "data_layout.h"
+#include "glob.h"
 
 /* Without this, C++ inlines even with -g */
 #ifdef DONT_INLINE
@@ -2368,7 +2369,7 @@ static BOOL verify_mem(BOOL              result,
 }
 
 #ifdef Is_True_On
-#   include "W_unistd.h" // For getpid
+#include <unistd.h>     // For getpid
 #endif
 
 static BOOL get_mem_dep(OP *pred_op, OP *succ_op, BOOL *definite, UINT8 *omega)

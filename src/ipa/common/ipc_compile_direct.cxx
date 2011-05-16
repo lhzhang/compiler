@@ -125,7 +125,7 @@ ipa_compile_init ()
   Is_True(tmpdir, ("no IPA temp. directory"));
 
   Is_True(infiles == 0 && outfiles == 0 && commands == 0 
-          && makefile_name == 0 && makefile == 0 && command_map == 0,
+          && command_map == 0,
           ("ipa_compile_init already initialized"));
 
   infiles             = CXX_NEW (vector<const char*>,          Malloc_Mem_Pool);
@@ -444,7 +444,7 @@ void ipacom_doit (const char* ipaa_filename)
   int i,n;
 
   Is_True(infiles != 0 && outfiles != 0 && outfiles_fullpath != 0 &&
-          commands != 0 && makefile != 0,
+          commands != 0,
           ("ipacom_doit: ipacom not yet initialized"));
   Is_True(infiles->size() == outfiles->size() &&
           infiles->size() == outfiles_fullpath->size() &&

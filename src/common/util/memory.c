@@ -38,6 +38,10 @@
 #include "tracing.h"
 #include "erglob.h"
 
+#ifdef linux
+#include <malloc.h>
+#endif // linux
+
 #ifdef KEY
 #ifndef NO_VALGRIND
 #include <valgrind/memcheck.h>

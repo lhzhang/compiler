@@ -1039,7 +1039,7 @@ static inline void Add_EnterExit_OMP_Trace(char *tp_enter, char *tp_exit,
                                            WN *wn, WN *block)
 {
   Is_True(Enable_Omp_Trace, 
-      "Add_EnterExit_OMP_Trace called without omp_trace enabled");
+      ("Add_EnterExit_OMP_Trace called without omp_trace enabled"));
   WN *wn_enter = Generate_Call_Shell( tp_enter, MTYPE_V, 0);
   WN *wn_exit  = Generate_Call_Shell( tp_exit, MTYPE_V, 0);
 
@@ -1054,7 +1054,7 @@ static inline void Add_BeginEnd_OMP_Trace(char *tp_begin, char *tp_end,
                                           WN *block)
 {
   Is_True(Enable_Omp_Trace, 
-      "Add_BeginEnd_OMP_Trace called without omp_trace enabled");
+      ("Add_BeginEnd_OMP_Trace called without omp_trace enabled"));
   WN *wn_begin = Generate_Call_Shell( tp_begin, MTYPE_V, 0);
   WN *wn_end   = Generate_Call_Shell( tp_end, MTYPE_V, 0);
 
@@ -1071,7 +1071,7 @@ static void Add_BeginEnd_OMP_Sections_TP(WN *block)
   WN *wn_end;
   BOOL in_section = FALSE;
   Is_True(Enable_Omp_Trace, 
-      "Add_BeginEnd_OMP_Sections_TP called without omp_trace enabled");
+      ("Add_BeginEnd_OMP_Sections_TP called without omp_trace enabled"));
   WN *sect_node = WN_first(block);
   /* add begin trace point for an initial implicit section */
   if (!sect_node || WN_opcode(sect_node) != OPC_PRAGMA ||
