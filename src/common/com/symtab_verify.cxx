@@ -201,21 +201,6 @@ ST_Verify_Flags (const ST &s)
 {
   static char msg[] = "Invalid %s (%s) for ST Flag: (%s)";
 
-  if (ST_is_weak_symbol (s)) {
-    Is_True(ST_export(s) != EXPORT_LOCAL &&
-            ST_export(s) != EXPORT_LOCAL_INTERNAL,
-            (msg, "Export scope", Export_Name(ST_export(s)), "ST_WEAK_SYMBOL"));
-
-    if (ST_base_idx (s) != ST_st_idx (s))
-      Is_True (ST_sclass (s) == SCLASS_EXTERN ||
-               ST_sclass (s) == SCLASS_TEXT ||
-               ST_sclass (s) == SCLASS_DGLOBAL ||
-               ST_sclass (s) == SCLASS_UGLOBAL,
-	       (msg, "Storage class", Sclass_Name(ST_sclass(s)),
-		"ST_WEAK_SYMBOL"));
-  }
-	       
-
   if (ST_is_initialized (s)) {
     Is_True(ST_sym_class(s) == CLASS_VAR || ST_sym_class(s) == CLASS_CONST ||
 	    ST_sym_class(s) == CLASS_BLOCK,
