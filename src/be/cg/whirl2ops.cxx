@@ -873,6 +873,52 @@ Set_TN_For_PREG (
 }
 
 
+// Creates pair for return register if it is needed and not created yet
+static void Create_Pair_For_Return_Reg(TN *tn, ST *preg_st, PREG_NUM preg_num)
+{
+  // create pair for return register if not created yet
+  ISA_REGISTER_CLASS rclass;
+  REGISTER reg;
+  
+  if (CGTARG_Preg_Register_And_Class(preg_num, &rclass, &reg)) {
+#ifdef TARG_X8664
+    if( reg == First_Int_Preg_Return_Offset &&
+        Is_Target_32bit() && ST_size(preg_st) > 4 &&
+        Get_TN_Pair(tn) == NULL ) {
+      if( !CGTARG_Preg_Register_And_Class(Last_Int_Preg_Return_Offset,
+    				      &rclass, &reg) ){
+        FmtAssert( FALSE, ("NYI") );
+      }
+      TN* pair = Build_Dedicated_TN( rclass, reg, ST_size(preg_st) );
+      Create_TN_Pair( tn, pair );
+    }
+#endif // TARG_X8664
+
+#ifdef EMULATE_LONGLONG
+    // only on IA-32
+    if (reg == First_Int_Preg_Return_Offset) {
+      // dedicated and eax
+      // map another TN for edx, its longlong pair,
+      // for when this tn is used in longlong situations
+      // such as longlong return values from functions
+      if (CGTARG_Preg_Register_And_Class(Last_Int_Preg_Return_Offset,
+                                         &rclass, &reg)) {
+        TN *pair = Build_Dedicated_TN(rclass, reg,
+                                      ST_size(preg_st));
+        
+        Add_TN_Pair (tn, pair);
+      } else {
+        #pragma mips_frequency_hint NEVER
+        FmtAssert (FALSE,
+                   ("Could not find reg for Last_Int_Preg_Return_Offset"));
+        /*NOTREACHED*/
+      }
+    }
+#endif
+  }
+}
+
+
 /* function exported externally for use in LRA. */
 TN *
 PREG_To_TN (ST *preg_st, 
@@ -888,6 +934,8 @@ PREG_To_TN (ST *preg_st,
 #ifdef KEY
   Is_True(preg_num > 0, ("PREG_To_TN: non-positive preg_num"));
 #endif
+  TYPE_ID mtype = TY_mtype(ST_type(preg_st));
+
   if (tn == NULL)
   {
     ISA_REGISTER_CLASS rclass;
@@ -925,45 +973,10 @@ PREG_To_TN (ST *preg_st,
 	}
 #endif
       	tn = Build_Dedicated_TN(rclass, reg, ST_size(preg_st));
-
-#ifdef TARG_X8664
-	if( reg == First_Int_Preg_Return_Offset &&
-	    Is_Target_32bit() && ST_size(preg_st) > 4){
-	  if( !CGTARG_Preg_Register_And_Class(Last_Int_Preg_Return_Offset,
-					      &rclass, &reg) ){
-	    FmtAssert( FALSE, ("NYI") );
-	  }
-	  TN* pair = Build_Dedicated_TN( rclass, reg, ST_size(preg_st) );
-	  Create_TN_Pair( tn, pair );
-	}
-#endif
-
-#ifdef EMULATE_LONGLONG
-        // only on IA-32
-        if (reg == First_Int_Preg_Return_Offset) {
-          // dedicated and eax
-          // map another TN for edx, its longlong pair,
-          // for when this tn is used in longlong situations
-          // such as longlong return values from functions
-          if (CGTARG_Preg_Register_And_Class(Last_Int_Preg_Return_Offset,
-                                             &rclass, &reg)) {
-            TN *pair = Build_Dedicated_TN(rclass, reg,
-                                          ST_size(preg_st));
-            
-            Add_TN_Pair (tn, pair);
-          } else {
-	    #pragma mips_frequency_hint NEVER
-            FmtAssert (FALSE,
-                       ("Could not find reg for Last_Int_Preg_Return_Offset"));
-	    /*NOTREACHED*/
-          }
-        }
-#endif
     }
     else
     {
       /* create a TN for this PREG. */
-      TYPE_ID mtype = TY_mtype(ST_type(preg_st));
 #ifdef TARG_X8664
       /* bug#512
 	 MTYPE_C4 is returned in one SSE register. (check wn_lower.cxx)
@@ -982,14 +995,6 @@ PREG_To_TN (ST *preg_st,
         tn = Build_TN_Of_Mtype (mtype);
       }
 #else
-#ifdef TARG_X8664
-      if( OP_NEED_PAIR(mtype) ){
-        mtype = (mtype == MTYPE_I8 ? MTYPE_I4 : MTYPE_U4);
-        tn = Build_TN_Of_Mtype(mtype);
-        Create_TN_Pair( tn, mtype );
-
-      } else
-#endif // TARG_X8664
 	tn = Build_TN_Of_Mtype (mtype);
 #endif
 
@@ -1042,6 +1047,9 @@ PREG_To_TN (ST *preg_st,
     PREG_To_TN_Array[preg_num] = tn;
     PREG_To_TN_Mtype[preg_num] = TY_mtype(ST_type(preg_st));
   }
+
+  Create_Pair_For_Return_Reg(tn, preg_st, preg_num);
+
   if ( TN_is_dedicated( tn ) ) {
     dedicated_seen = TRUE;
     // For dedicated FP registers, it is important that we use
