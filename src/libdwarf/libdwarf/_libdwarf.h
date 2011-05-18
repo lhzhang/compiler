@@ -252,6 +252,8 @@ struct _Dwarf_Fde {
 	Dwarf_Unsigned	fde_symndx;	/* Symbol index for relocation. */
 	Dwarf_Unsigned	fde_esymndx;	/* End symbol index for relocation. */
 	Dwarf_Addr	fde_eoff;	/* Offset from the end symbol. */
+	Dwarf_Signed	fde_ex_symndx;	/* Exception table symbol index. */
+	Dwarf_Unsigned	fde_ex_eoff;	/* Offset into exception table. */
 	STAILQ_ENTRY(_Dwarf_Fde) fde_next; /* Next FDE in list. */
 };
 
@@ -267,6 +269,7 @@ struct _Dwarf_Cie {
 	Dwarf_Signed	cie_daf;	/* Data alignment factor. */
 	Dwarf_Unsigned	cie_ra;		/* Return address register. */
 	Dwarf_Unsigned	cie_auglen;	/* Augmentation length. */
+	Dwarf_Unsigned  cie_personality;	/* Personality */
 	uint8_t		*cie_augdata;	/* Augmentation data; */
 	uint8_t		cie_fde_encode; /* FDE PC start/range encode. */
 	Dwarf_Ptr	cie_initinst;	/* Initial instructions. */
@@ -449,10 +452,17 @@ struct _Dwarf_Debug {
 	Dwarf_ArangeSet dbgp_as;
 	Dwarf_Macro_Details *dbgp_mdlist;
 	Dwarf_Unsigned	dbgp_mdcnt;
+        /* For .debug_frame */
 	STAILQ_HEAD(, _Dwarf_Cie) dbgp_cielist;
 	STAILQ_HEAD(, _Dwarf_Fde) dbgp_fdelist;
 	Dwarf_Unsigned	dbgp_cielen;
 	Dwarf_Unsigned	dbgp_fdelen;
+        /* For .eh_frame */
+	STAILQ_HEAD(, _Dwarf_Cie) dbgp_eh_cielist;
+	STAILQ_HEAD(, _Dwarf_Fde) dbgp_eh_fdelist;
+	Dwarf_Unsigned	dbgp_eh_cielen;
+	Dwarf_Unsigned	dbgp_eh_fdelen;
+
 	Dwarf_NameTbl	dbgp_pubs;
 	Dwarf_NameTbl	dbgp_weaks;
 	Dwarf_NameTbl	dbgp_funcs;
