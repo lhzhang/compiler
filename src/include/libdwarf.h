@@ -464,6 +464,9 @@ Dwarf_Unsigned	dwarf_add_file_decl(Dwarf_P_Debug, char *, Dwarf_Unsigned,
 Dwarf_Unsigned	dwarf_add_frame_cie(Dwarf_P_Debug, char *, Dwarf_Small,
 		    Dwarf_Small, Dwarf_Small, Dwarf_Ptr, Dwarf_Unsigned,
 		    Dwarf_Error *);
+Dwarf_Unsigned	dwarf_add_frame_cie_eh(Dwarf_P_Debug, char *, Dwarf_Small,
+		    Dwarf_Small, Dwarf_Small, Dwarf_Unsigned, Dwarf_Ptr,
+		    Dwarf_Unsigned, Dwarf_Error *);
 Dwarf_P_Fde	dwarf_add_fde_inst(Dwarf_P_Fde, Dwarf_Small, Dwarf_Unsigned,
 		    Dwarf_Unsigned, Dwarf_Error *);
 Dwarf_Unsigned	dwarf_add_frame_fde(Dwarf_P_Debug, Dwarf_P_Fde, Dwarf_P_Die,
@@ -472,6 +475,10 @@ Dwarf_Unsigned	dwarf_add_frame_fde(Dwarf_P_Debug, Dwarf_P_Fde, Dwarf_P_Die,
 Dwarf_Unsigned	dwarf_add_frame_fde_b(Dwarf_P_Debug, Dwarf_P_Fde, Dwarf_P_Die,
 		    Dwarf_Unsigned, Dwarf_Addr, Dwarf_Unsigned, Dwarf_Unsigned,
 		    Dwarf_Unsigned, Dwarf_Addr, Dwarf_Error *);
+Dwarf_Unsigned	dwarf_add_frame_fde_eh(Dwarf_P_Debug, Dwarf_P_Fde, Dwarf_P_Die,
+		    Dwarf_Unsigned, Dwarf_Addr, Dwarf_Unsigned, Dwarf_Unsigned,
+		    Dwarf_Unsigned, Dwarf_Unsigned,
+		    Dwarf_Signed, Dwarf_Unsigned, Dwarf_Error *);
 Dwarf_Unsigned	dwarf_add_funcname(Dwarf_P_Debug, Dwarf_P_Die, char *,
 		    Dwarf_Error *);
 Dwarf_Unsigned	dwarf_add_pubname(Dwarf_P_Debug, Dwarf_P_Die, char *,
