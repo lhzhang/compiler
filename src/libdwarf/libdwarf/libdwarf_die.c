@@ -403,6 +403,7 @@ attr_gen:
 	if (ret != DW_DLE_NONE)
 		return (ret);
 
+null_die:        
 	/* Proceed to child DIE. */
 	if (die->die_child != NULL) {
 		ret = _dwarf_die_gen_recursive(dbg, cu, drs, die->die_child,
@@ -419,7 +420,6 @@ attr_gen:
 			return (ret);
 	}
 
-null_die:
 	/* Write a null DIE indicating the end of current level. */
 	if (STAILQ_EMPTY(&die->die_attr) || die->die_right == NULL) {
 		ret = _dwarf_write_uleb128_alloc(&ds->ds_data, &ds->ds_cap,
