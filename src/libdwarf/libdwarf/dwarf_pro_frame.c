@@ -46,10 +46,10 @@ dwarf_new_fde(Dwarf_P_Debug dbg, Dwarf_Error *error)
 	return (fde);
 }
 
-Dwarf_Unsigned
-dwarf_add_frame_cie(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
-    Dwarf_Small daf, Dwarf_Small ra, Dwarf_Ptr initinst,
-    Dwarf_Unsigned inst_len, Dwarf_Error *error)
+static Dwarf_Unsigned
+_dwarf_add_frame_cie(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
+    Dwarf_Small daf, Dwarf_Small ra, Dwarf_Unsigned personality, Dwarf_Ptr initinst,
+    Dwarf_Unsigned inst_len, Dwarf_Error *error, int is_eh)
 {
 	Dwarf_P_Cie cie;
 
@@ -62,8 +62,11 @@ dwarf_add_frame_cie(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
 		DWARF_SET_ERROR(dbg, error,DW_DLE_MEMORY);
 		return (DW_DLV_NOCOUNT);
 	}
-	STAILQ_INSERT_TAIL(&dbg->dbgp_cielist, cie, cie_next);
-
+	if (is_eh)
+		STAILQ_INSERT_TAIL(&dbg->dbgp_eh_cielist, cie, cie_next);
+	else
+		STAILQ_INSERT_TAIL(&dbg->dbgp_cielist, cie, cie_next);
+	/* XXX: should we have another index for is_eh=1 */
 	cie->cie_index = dbg->dbgp_cielen++;
 
 	if (augmenter != NULL) {
@@ -77,6 +80,7 @@ dwarf_add_frame_cie(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
 	cie->cie_caf = caf;
 	cie->cie_daf = (int8_t) daf; /* daf is signed. */
 	cie->cie_ra = ra;
+	cie->cie_personality = personality;
 	if (initinst != NULL && inst_len > 0) {
 		cie->cie_initinst = malloc((size_t) inst_len);
 		if (cie->cie_initinst == NULL) {
@@ -91,20 +95,29 @@ dwarf_add_frame_cie(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
 }
 
 Dwarf_Unsigned
-dwarf_add_frame_fde(Dwarf_P_Debug dbg, Dwarf_P_Fde fde, Dwarf_P_Die die,
-    Dwarf_Unsigned cie, Dwarf_Addr virt_addr, Dwarf_Unsigned code_len,
-    Dwarf_Unsigned symbol_index, Dwarf_Error *error)
+dwarf_add_frame_cie_eh(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
+    Dwarf_Small daf, Dwarf_Small ra, Dwarf_Unsigned personality, Dwarf_Ptr initinst,
+    Dwarf_Unsigned inst_len, Dwarf_Error *error)
 {
-
-	return (dwarf_add_frame_fde_b(dbg, fde, die, cie, virt_addr, code_len,
-	    symbol_index, 0, 0, error));
+	_dwarf_add_frame_cie(dbg, augmenter, caf, daf, ra, personality,
+	    initinst, inst_len, error, 1/*is_eh*/);
 }
 
 Dwarf_Unsigned
-dwarf_add_frame_fde_b(Dwarf_P_Debug dbg, Dwarf_P_Fde fde, Dwarf_P_Die die,
+dwarf_add_frame_cie(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
+    Dwarf_Small daf, Dwarf_Small ra, Dwarf_Ptr initinst,
+    Dwarf_Unsigned inst_len, Dwarf_Error *error)
+{
+	_dwarf_add_frame_cie(dbg, augmenter, caf, daf, ra, 0/*personality*/,
+	    initinst, inst_len, error, 0/*is_eh*/);
+}
+
+static Dwarf_Unsigned
+_dwarf_add_frame_fde(Dwarf_P_Debug dbg, Dwarf_P_Fde fde, Dwarf_P_Die die,
     Dwarf_Unsigned cie, Dwarf_Addr virt_addr, Dwarf_Unsigned code_len,
     Dwarf_Unsigned symbol_index, Dwarf_Unsigned end_symbol_index,
-    Dwarf_Addr offset_from_end_sym, Dwarf_Error *error)
+    Dwarf_Addr offset_from_end_sym, Dwarf_Signed offset_into_exception_tables,
+    Dwarf_Unsigned exception_table_symbol_index, Dwarf_Error *error, int is_eh)
 {
 	Dwarf_P_Cie ciep;
 	int i;
@@ -120,7 +133,10 @@ dwarf_add_frame_fde_b(Dwarf_P_Debug dbg, Dwarf_P_Fde fde, Dwarf_P_Die die,
 		return (DW_DLV_NOCOUNT);
 	}
 
-	ciep = STAILQ_FIRST(&dbg->dbgp_cielist);
+	if (is_eh)
+		ciep = STAILQ_FIRST(&dbg->dbgp_eh_cielist);
+	else
+		ciep = STAILQ_FIRST(&dbg->dbgp_cielist);
 	for (i = 0; (Dwarf_Unsigned) i < cie; i++) {
 		ciep = STAILQ_NEXT(ciep, cie_next);
 		if (ciep == NULL)
@@ -143,10 +159,47 @@ dwarf_add_frame_fde_b(Dwarf_P_Debug dbg, Dwarf_P_Fde fde, Dwarf_P_Die die,
 	fde->fde_symndx = symbol_index;
 	fde->fde_esymndx = end_symbol_index;
 	fde->fde_eoff = offset_from_end_sym;
+	fde->fde_ex_symndx = exception_table_symbol_index;
+	fde->fde_ex_eoff = offset_into_exception_tables;
 
-	STAILQ_INSERT_TAIL(&dbg->dbgp_fdelist, fde, fde_next);
+	if (is_eh)
+		STAILQ_INSERT_TAIL(&dbg->dbgp_eh_fdelist, fde, fde_next);
+	else
+		STAILQ_INSERT_TAIL(&dbg->dbgp_fdelist, fde, fde_next);
 
 	return (dbg->dbgp_fdelen++);
+}
+
+Dwarf_Unsigned
+dwarf_add_frame_fde_eh(Dwarf_P_Debug dbg, Dwarf_P_Fde fde, Dwarf_P_Die die,
+    Dwarf_Unsigned cie, Dwarf_Addr virt_addr, Dwarf_Unsigned code_len,
+    Dwarf_Unsigned symbol_index, Dwarf_Unsigned end_symbol_index,
+    Dwarf_Unsigned offset_from_end_sym, Dwarf_Signed offset_into_exception_tables,
+    Dwarf_Unsigned exception_table_symbol_index, Dwarf_Error *error)
+{
+	_dwarf_add_frame_fde(dbg, fde, die, cie, virt_addr, code_len, symbol_index,
+	    end_symbol_index, offset_from_end_sym, offset_into_exception_tables,
+	    exception_table_symbol_index, error, 1/*is_eh*/);
+}
+
+Dwarf_Unsigned
+dwarf_add_frame_fde(Dwarf_P_Debug dbg, Dwarf_P_Fde fde, Dwarf_P_Die die,
+    Dwarf_Unsigned cie, Dwarf_Addr virt_addr, Dwarf_Unsigned code_len,
+    Dwarf_Unsigned symbol_index, Dwarf_Error *error)
+{
+
+	return (dwarf_add_frame_fde_b(dbg, fde, die, cie, virt_addr, code_len,
+	    symbol_index, 0, 0, error));
+}
+
+Dwarf_Unsigned
+dwarf_add_frame_fde_b(Dwarf_P_Debug dbg, Dwarf_P_Fde fde, Dwarf_P_Die die,
+    Dwarf_Unsigned cie, Dwarf_Addr virt_addr, Dwarf_Unsigned code_len,
+    Dwarf_Unsigned symbol_index, Dwarf_Unsigned end_symbol_index,
+    Dwarf_Addr offset_from_end_sym, Dwarf_Error *error)
+{
+	_dwarf_add_frame_fde(dbg, fde, die, cie, virt_addr, code_len, symbol_index,
+	    end_symbol_index, offset_from_end_sym, 0, 0, error, 0/*is_eh*/);
 }
 
 Dwarf_P_Fde
