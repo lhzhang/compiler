@@ -486,6 +486,7 @@ _dwarf_add_string_attr(Dwarf_P_Die die, Dwarf_P_Attribute *atp, Dwarf_Half attr,
 		return (ret);
 	}
 	at->u[1].s = _dwarf_strtab_get_table(dbg) + at->u[0].u64;
+	die->die_name = at->u[1].s;
 
 	*atp = at;
 
