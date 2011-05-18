@@ -4035,18 +4035,6 @@ Cg_Dwarf_Output_Asm_Bytes_Sym_Relocs (FILE                 *asm_file,
     ++k;
   }
 
-#ifdef KEY
-  if (!strcmp (section_name, EH_FRAME_SECTNAME)){
-    // End preceding frame/cie
-#if defined(BUILD_OS_DARWIN)
-    fprintf (asm_file, "\t%s %d\n", AS_ALIGN, logtwo(alignment));
-#else /* defined(BUILD_OS_DARWIN) */
-    fprintf (asm_file, "\t%s %d\n", AS_ALIGN, alignment);
-#endif /* defined(BUILD_OS_DARWIN) */
-    fprintf (asm_file, "%s:\n", dwarf_end);
-  }
-#endif
-
   fflush(asm_file);
 }
 
