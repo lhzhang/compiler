@@ -1409,7 +1409,7 @@ gen_fail:
 
 static int
 _dwarf_frame_gen_cie(Dwarf_P_Debug dbg, Dwarf_P_Section ds, Dwarf_P_Cie cie,
-    Dwarf_Error *error)
+    Dwarf_Rel_Section drs, Dwarf_Error *error, int is_eh)
 {
 	Dwarf_Unsigned len;
 	uint64_t offset;
@@ -1424,8 +1424,9 @@ _dwarf_frame_gen_cie(Dwarf_P_Debug dbg, Dwarf_P_Section ds, Dwarf_P_Cie cie,
 	/* Length placeholder. */
 	RCHECK(WRITE_VALUE(cie->cie_length, 4));
 
-	/* .debug_frame use CIE id ~0. */
-	RCHECK(WRITE_VALUE(~0U, 4));
+	/* .debug_frame use CIE id ~0, while .eh_frame uses 0. */
+	Dwarf_Unsigned cie_id = is_eh ? 0 : ~0U;
+	RCHECK(WRITE_VALUE(cie_id, 4));
 
 	/* .debug_frame version is 1. (DWARF2) */
 	RCHECK(WRITE_VALUE(cie->cie_version, 1));
@@ -1442,6 +1443,34 @@ _dwarf_frame_gen_cie(Dwarf_P_Debug dbg, Dwarf_P_Section ds, Dwarf_P_Cie cie,
 	RCHECK(WRITE_SLEB128(cie->cie_daf));
 	RCHECK(WRITE_VALUE(cie->cie_ra, 1));
 
+//        printf("offset1 = %u\n", ds->ds_size);
+	/* TODO: make this two pass so that the length is correct */
+	if (cie->cie_augment != NULL && strlen(cie->cie_augment) > 0) {
+		const char *augment = cie->cie_augment;
+		unsigned len = 11;//roundup(11, dbg->dbg_pointer_size);
+		do {
+			switch (*augment) {
+			case 'z':
+				RCHECK(WRITE_ULEB128(len));
+			break;
+			case 'P':
+				RCHECK(WRITE_VALUE(0, 1));   // Personality encoding
+				RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_data_reloc_by_str_id,
+				    dbg->dbg_pointer_size, ds->ds_size, cie->cie_personality, 0, 0, error));
+			break;
+			case 'L':
+				RCHECK(WRITE_VALUE(0x1b, 1));   // hardcoded for now
+			break;
+			case 'R':
+				RCHECK(WRITE_VALUE(DW_EH_PE_absptr, 1));
+			break;
+			default:
+				printf("SHOULD WRITE AUGMENTATION DATA HERE: %c\n", *augment);
+			}
+		} while (*++augment);
+	}
+//        printf("offset2 = %u\n", ds->ds_size);
+
 	/* Write initial instructions, if present. */
 	if (cie->cie_initinst != NULL)
 		RCHECK(WRITE_BLOCK(cie->cie_initinst, cie->cie_instlen));
@@ -1452,6 +1481,11 @@ _dwarf_frame_gen_cie(Dwarf_P_Debug dbg, Dwarf_P_Section ds, Dwarf_P_Cie cie,
 	while (len++ < cie->cie_length)
 		RCHECK(WRITE_VALUE(DW_CFA_nop, 1));
 
+#if 0
+        printf("offset = %u\n", cie->cie_offset);
+        printf("inst len = %u\n", cie->cie_instlen);
+        printf("len = %u\n", cie->cie_length);
+#endif
 	/* Fill in the length field. */
 	dbg->write(ds->ds_data, &offset, cie->cie_length, 4);
 	
@@ -1463,7 +1497,7 @@ gen_fail:
 
 static int
 _dwarf_frame_gen_fde(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
-    Dwarf_Rel_Section drs, Dwarf_P_Fde fde, Dwarf_Error *error)
+    Dwarf_Rel_Section drs, Dwarf_P_Fde fde, Dwarf_Error *error, int is_eh)
 {
 	Dwarf_Unsigned len;
 	uint64_t offset;
@@ -1474,14 +1508,21 @@ _dwarf_frame_gen_fde(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
 
 	fde->fde_offset = offset = ds->ds_size;
 	fde->fde_length = 0;
-	fde->fde_cieoff = fde->fde_cie->cie_offset;
+	if (is_eh)
+		fde->fde_cieoff = -1 * (fde->fde_cie->cie_offset - offset) + 4;
+	else
+		fde->fde_cieoff = fde->fde_cie->cie_offset;
 
 	/* Length placeholder. */
 	RCHECK(WRITE_VALUE(fde->fde_length, 4));
 
+
 	/* Write CIE pointer. */
-	RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_data_reloc, 4,
-	    ds->ds_size, 0, fde->fde_cieoff, ".debug_frame", error));
+	if (is_eh)
+		RCHECK(WRITE_VALUE(fde->fde_cieoff, 4));
+	else
+		RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_data_reloc, 4,
+		    ds->ds_size, 0, fde->fde_cieoff, is_eh ? ".eh_frame" : ".debug_frame", error));
 
 	/* Write FDE initial location. */
 	RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_data_reloc,
@@ -1499,6 +1540,14 @@ _dwarf_frame_gen_fde(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
 		    fde->fde_esymndx, fde->fde_initloc, fde->fde_eoff, error));
 	else
 		RCHECK(WRITE_VALUE(fde->fde_adrange, dbg->dbg_pointer_size));
+
+	const char *augment = fde->fde_cie->cie_augment;
+	/* TODO: get the augmentation and do something with it, or is it ok as
+	* it is?
+	*/
+	if (fde->fde_ex_symndx != 0)
+		RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_segment_rel,
+		    dbg->dbg_pointer_size, ds->ds_size, fde->fde_ex_symndx, 0, ".eh_frame", error));
 
 	/* Write FDE frame instructions. */
 	RCHECK(WRITE_BLOCK(fde->fde_inst, fde->fde_instlen));
@@ -1519,7 +1568,7 @@ gen_fail:
 }
 
 int
-_dwarf_frame_gen(Dwarf_P_Debug dbg, Dwarf_Error *error)
+_dwarf_frame_gen(Dwarf_P_Debug dbg, Dwarf_Error *error, int is_eh)
 {
 	Dwarf_P_Section ds;
 	Dwarf_Rel_Section drs;
@@ -1527,11 +1576,14 @@ _dwarf_frame_gen(Dwarf_P_Debug dbg, Dwarf_Error *error)
 	Dwarf_P_Fde fde;
 	int ret;
 
-	if (STAILQ_EMPTY(&dbg->dbgp_cielist))
+	if (!is_eh && STAILQ_EMPTY(&dbg->dbgp_cielist))
+		return (DW_DLE_NONE);
+
+	if (is_eh && STAILQ_EMPTY(&dbg->dbgp_eh_cielist))
 		return (DW_DLE_NONE);
 
 	/* Create .debug_frame section. */
-	if ((ret = _dwarf_section_init(dbg, &ds, ".debug_frame", 0, error)) !=
+	if ((ret = _dwarf_section_init(dbg, &ds, is_eh ? ".eh_frame" : ".debug_frame", 0, error)) !=
 	    DW_DLE_NONE)
 		goto gen_fail0;
 
@@ -1539,12 +1591,20 @@ _dwarf_frame_gen(Dwarf_P_Debug dbg, Dwarf_Error *error)
 	RCHECK(_dwarf_reloc_section_init(dbg, &drs, ds, error));
 
 	/* Generate list of CIE. */
-	STAILQ_FOREACH(cie, &dbg->dbgp_cielist, cie_next)
-		RCHECK(_dwarf_frame_gen_cie(dbg, ds, cie, error));
+	if (is_eh)
+		STAILQ_FOREACH(cie, &dbg->dbgp_eh_cielist, cie_next)
+			RCHECK(_dwarf_frame_gen_cie(dbg, ds, cie, drs, error, is_eh));
+	else
+		STAILQ_FOREACH(cie, &dbg->dbgp_cielist, cie_next)
+			RCHECK(_dwarf_frame_gen_cie(dbg, ds, cie, drs, error, is_eh));
 
 	/* Generate list of FDE. */
-	STAILQ_FOREACH(fde, &dbg->dbgp_fdelist, fde_next)
-		RCHECK(_dwarf_frame_gen_fde(dbg, ds, drs, fde, error));
+	if (is_eh)
+		STAILQ_FOREACH(fde, &dbg->dbgp_eh_fdelist, fde_next)
+			RCHECK(_dwarf_frame_gen_fde(dbg, ds, drs, fde, error, is_eh));
+	else
+		STAILQ_FOREACH(fde, &dbg->dbgp_fdelist, fde_next)
+			RCHECK(_dwarf_frame_gen_fde(dbg, ds, drs, fde, error, is_eh));
 
 	/* Inform application the creation of .debug_frame ELF section. */
 	RCHECK(_dwarf_section_callback(dbg, ds, SHT_PROGBITS, 0, 0, 0, error));

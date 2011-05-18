@@ -153,7 +153,11 @@ _dwarf_generate_sections(Dwarf_P_Debug dbg, Dwarf_Error *error)
 		return (ret);
 
 	/* Produce .debug_frame section. */
-	if ((ret = _dwarf_frame_gen(dbg, error)) != DW_DLE_NONE)
+	if ((ret = _dwarf_frame_gen(dbg, error, 0)) != DW_DLE_NONE)
+		return (ret);
+
+	/* Produce .eh_frame section. */
+	if ((ret = _dwarf_frame_gen(dbg, error, 1)) != DW_DLE_NONE)
 		return (ret);
 
 	/* Produce .debug_aranges section. */
