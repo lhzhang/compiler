@@ -388,22 +388,21 @@ Em_Dwarf_Begin (BOOL is_64bit, BOOL dwarf_trace, BOOL is_cplus,
 
 #ifdef TARG_X8664
   // Generate a CIE for .eh_frame only if it is C++ or if -DEBUG:eh_frame=on
-  // TODO: how to do this in bsd libdwarf?
-#if 0
   if (is_cplus || DEBUG_Emit_Ehframe)
-    eh_cie_index = dwf_add_ehframe_cie (dw_dbg, augmenter,
+    eh_cie_index = dwarf_add_frame_cie_eh (dw_dbg, (char *)augmenter,
 		    1, data_alignment_factor,
 		    // In common/com/em_dwarf.cxx, we have 
 		    // target description only for x86_64. So, we need to 
 		    // specify what is the right column for x86.
-		    Is_Target_64bit() ? DW_FRAME_RA_COL: 0x8,
+		    return_reg,
 		    personality,
+#if 0
 		    (Gen_PIC_Call_Shared || Gen_PIC_Shared),
 		    is_64bit,
-		    Is_Target_64bit() ? init_bytes :  init_x86_bytes, 
-		    Is_Target_64bit() ? sizeof(init_bytes) : sizeof(init_x86_bytes), 
-		    &dw_error);
 #endif
+		    cie_init_bytes,
+		    cie_init_byte_len,
+		    &dw_error);
 #elif defined(TARG_MIPS)
   // Generate a CIE for .eh_frame only if it is C++ or if -DEBUG:eh_frame=on
   if (is_cplus || DEBUG_Emit_Ehframe)
@@ -760,10 +759,8 @@ void Em_Dwarf_Process_PU (Dwarf_Unsigned begin_label,
 			       (Dwarf_Unsigned) end_label,
 			       end_offset,
 			       &dw_error);
-  // TODO: how to do this in bsd libdwarf
-#if 0
   else
-  	dwarf_add_frame_info_b (dw_dbg, fde, PU_die,
+  	dwarf_add_frame_fde_eh (dw_dbg, fde, PU_die,
                                 cie_index, 
 				begin_offset,
 				0 /* dummy code length */,
@@ -771,13 +768,10 @@ void Em_Dwarf_Process_PU (Dwarf_Unsigned begin_label,
 				(Dwarf_Unsigned) end_label,
 				end_offset,
 				eh_offset, eh_symindex, &dw_error);
-#endif
 
 #ifdef KEY
   if (eh_fde == NULL)
   	return;
-    // TODO: how to do this in bsd libdwarf
-#if 0
   if (eh_offset == DW_DLX_NO_EH_OFFSET)	/* no exception handler */
   	dwarf_add_frame_fde_b (dw_dbg, eh_fde, PU_die,
                                eh_cie_index, 
@@ -788,7 +782,7 @@ void Em_Dwarf_Process_PU (Dwarf_Unsigned begin_label,
 			       end_offset,
 			       &dw_error);
   else
-  	dwf_add_ehframe_info_b (dw_dbg, eh_fde, PU_die, 
+  	dwarf_add_frame_fde_eh (dw_dbg, eh_fde, PU_die, 
                                eh_cie_index, 
 				begin_offset,
 				0 /* dummy code length */,
@@ -796,7 +790,6 @@ void Em_Dwarf_Process_PU (Dwarf_Unsigned begin_label,
 				(Dwarf_Unsigned) end_label,
 				end_offset,
 				eh_offset, eh_symindex, &dw_error);
-#endif
 #endif
 }
 #ifdef TARG_X8664
