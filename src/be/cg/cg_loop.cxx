@@ -5066,7 +5066,6 @@ void Unroll_Do_Loop(CG_LOOP& cl, UINT32 ntimes)
   /* Update loop descriptor for unrolled loop */
   LOOP_DESCR_loophead(loop) = unrolled_body;
   LOOP_DESCR_Delete_BB(loop, head);
-  LOOP_DESCR_Delete_BB(loop, head);
   LOOP_DESCR_Add_BB(loop, unrolled_body);
   LOOP_DESCR_loopinfo(loop) = unrolled_info;
 
