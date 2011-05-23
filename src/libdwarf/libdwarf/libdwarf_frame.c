@@ -1541,13 +1541,15 @@ _dwarf_frame_gen_fde(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
 	else
 		RCHECK(WRITE_VALUE(fde->fde_adrange, dbg->dbg_pointer_size));
 
+	/* TODO: Dont hardcode this. */
 	const char *augment = fde->fde_cie->cie_augment;
-	/* TODO: get the augmentation and do something with it, or is it ok as
-	* it is?
-	*/
-	if (fde->fde_ex_symndx != 0)
-		RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_segment_rel,
-		    dbg->dbg_pointer_size, ds->ds_size, fde->fde_ex_symndx, 0, ".eh_frame", error));
+	if (*augment == 'z') {
+		RCHECK(WRITE_ULEB128(dbg->dbg_pointer_size));
+
+		if (fde->fde_ex_symndx != 0)
+			RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_segment_rel,
+			    dbg->dbg_pointer_size, ds->ds_size, fde->fde_ex_symndx, 0, ".eh_frame", error));
+	}
 
 	/* Write FDE frame instructions. */
 	RCHECK(WRITE_BLOCK(fde->fde_inst, fde->fde_instlen));
