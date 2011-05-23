@@ -403,6 +403,9 @@ attr_gen:
 	if (ret != DW_DLE_NONE)
 		return (ret);
 
+	/* It's incorrect to have DIEs without attributes but wgen produces
+	* those, ie. for void type
+	*/
 null_die:        
 	/* Proceed to child DIE. */
 	if (die->die_child != NULL) {
@@ -420,6 +423,7 @@ null_die:
 			return (ret);
 	}
 
+//null_die:        
 	/* Write a null DIE indicating the end of current level. */
 	if (STAILQ_EMPTY(&die->die_attr) || die->die_right == NULL) {
 		ret = _dwarf_write_uleb128_alloc(&ds->ds_data, &ds->ds_cap,
