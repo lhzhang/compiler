@@ -320,9 +320,6 @@ _dwarf_die_gen_recursive(Dwarf_P_Debug dbg, Dwarf_CU cu, Dwarf_Rel_Section drs,
 	if (pass2)
 		goto attr_gen;
 
-	if (STAILQ_EMPTY(&die->die_attr))
-		goto null_die;
-
 	/*
 	 * Add DW_AT_sibling attribute for DIEs with children, so consumers
 	 * can quickly scan chains of siblings, while ignoring the children
@@ -348,7 +345,8 @@ _dwarf_die_gen_recursive(Dwarf_P_Debug dbg, Dwarf_CU cu, Dwarf_Rel_Section drs,
 			continue;
 		at = STAILQ_FIRST(&die->die_attr);
 		ad = STAILQ_FIRST(&ab->ab_attrdef);
-		assert(at != NULL && ad != NULL);
+		if (!at || !ad)
+			continue;
 		match = 1;
 		do {
 			if (at->at_attrib != ad->ad_attrib ||
@@ -403,10 +401,6 @@ attr_gen:
 	if (ret != DW_DLE_NONE)
 		return (ret);
 
-	/* It's incorrect to have DIEs without attributes but wgen produces
-	* those, ie. for void type
-	*/
-null_die:        
 	/* Proceed to child DIE. */
 	if (die->die_child != NULL) {
 		ret = _dwarf_die_gen_recursive(dbg, cu, drs, die->die_child,
@@ -423,9 +417,8 @@ null_die:
 			return (ret);
 	}
 
-//null_die:        
 	/* Write a null DIE indicating the end of current level. */
-	if (STAILQ_EMPTY(&die->die_attr) || die->die_right == NULL) {
+	if (die->die_right == NULL) {
 		ret = _dwarf_write_uleb128_alloc(&ds->ds_data, &ds->ds_cap,
 		    &ds->ds_size, 0, error);
 		if (ret != DW_DLE_NONE)
