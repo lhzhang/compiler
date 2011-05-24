@@ -1466,7 +1466,7 @@ _dwarf_frame_gen_cie(Dwarf_P_Debug dbg, Dwarf_P_Section ds, Dwarf_P_Cie cie,
 				    dbg->dbg_pointer_size, ds->ds_size, cie->cie_personality, 0, 0, error));
 			break;
 			case 'L':
-				RCHECK(WRITE_VALUE(0x1b, 1));   // hardcoded for now
+				RCHECK(WRITE_VALUE(DW_EH_PE_absptr, 1));   // hardcoded for now
 			break;
 			case 'R':
 				RCHECK(WRITE_VALUE(DW_EH_PE_absptr, 1));
@@ -1544,12 +1544,13 @@ _dwarf_frame_gen_fde(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
 
 	/* TODO: Dont hardcode this. */
 	const char *augment = fde->fde_cie->cie_augment;
-	if (*augment == 'z') {
+	if (strcmp(augment, "zPL") == 0) {
+		/* Size */
 		RCHECK(WRITE_ULEB128(dbg->dbg_pointer_size));
 
 		if (fde->fde_ex_symndx != 0)
 			RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_segment_rel,
-			    dbg->dbg_pointer_size, ds->ds_size, fde->fde_ex_symndx, 0, ".eh_frame", error));
+			    dbg->dbg_pointer_size, ds->ds_size, fde->fde_ex_symndx, 0, NULL, error));
 	}
 
 	/* Write FDE frame instructions. */
