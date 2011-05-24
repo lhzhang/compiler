@@ -1443,11 +1443,18 @@ _dwarf_frame_gen_cie(Dwarf_P_Debug dbg, Dwarf_P_Section ds, Dwarf_P_Cie cie,
 	RCHECK(WRITE_SLEB128(cie->cie_daf));
 	RCHECK(WRITE_VALUE(cie->cie_ra, 1));
 
-//        printf("offset1 = %u\n", ds->ds_size);
-	/* TODO: make this two pass so that the length is correct */
 	if (cie->cie_augment != NULL && strlen(cie->cie_augment) > 0) {
 		const char *augment = cie->cie_augment;
-		unsigned len = 11;//roundup(11, dbg->dbg_pointer_size);
+		unsigned len = 0;
+		do {
+			switch (*augment) {
+			case 'z': len += 1; break;
+			case 'P': len += 1; len += dbg->dbg_pointer_size; break;
+			case 'L': len += 1; break;
+			case 'R': len += 1; break;
+			}
+		} while (*++augment);
+		augment = cie->cie_augment;
 		do {
 			switch (*augment) {
 			case 'z':
@@ -1469,7 +1476,6 @@ _dwarf_frame_gen_cie(Dwarf_P_Debug dbg, Dwarf_P_Section ds, Dwarf_P_Cie cie,
 			}
 		} while (*++augment);
 	}
-//        printf("offset2 = %u\n", ds->ds_size);
 
 	/* Write initial instructions, if present. */
 	if (cie->cie_initinst != NULL)
@@ -1481,11 +1487,6 @@ _dwarf_frame_gen_cie(Dwarf_P_Debug dbg, Dwarf_P_Section ds, Dwarf_P_Cie cie,
 	while (len++ < cie->cie_length)
 		RCHECK(WRITE_VALUE(DW_CFA_nop, 1));
 
-#if 0
-        printf("offset = %u\n", cie->cie_offset);
-        printf("inst len = %u\n", cie->cie_instlen);
-        printf("len = %u\n", cie->cie_length);
-#endif
 	/* Fill in the length field. */
 	dbg->write(ds->ds_data, &offset, cie->cie_length, 4);
 	
