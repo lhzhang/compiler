@@ -345,10 +345,8 @@ _dwarf_die_gen_recursive(Dwarf_P_Debug dbg, Dwarf_CU cu, Dwarf_Rel_Section drs,
 			continue;
 		at = STAILQ_FIRST(&die->die_attr);
 		ad = STAILQ_FIRST(&ab->ab_attrdef);
-		if (!at || !ad)
-			continue;
 		match = 1;
-		do {
+		while (at != NULL && ad != NULL) {
 			if (at->at_attrib != ad->ad_attrib ||
 			    at->at_form != ad->ad_form) {
 				match = 0;
@@ -356,10 +354,9 @@ _dwarf_die_gen_recursive(Dwarf_P_Debug dbg, Dwarf_CU cu, Dwarf_Rel_Section drs,
 			}
 			at = STAILQ_NEXT(at, at_next);
 			ad = STAILQ_NEXT(ad, ad_next);
-			if ((at == NULL && ad != NULL) ||
-			    (at != NULL && ad == NULL))
-				match = 0;
-		} while (at != NULL && ad != NULL);
+		}
+		if ((at == NULL && ad != NULL) || (at != NULL && ad == NULL))
+			match = 0;
 		if (match) {
 			die->die_ab = ab;
 			break;
