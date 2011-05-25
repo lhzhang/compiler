@@ -272,6 +272,8 @@ struct _Dwarf_Cie {
 	Dwarf_Unsigned  cie_personality;	/* Personality */
 	uint8_t		*cie_augdata;	/* Augmentation data; */
 	uint8_t		cie_fde_encode; /* FDE PC start/range encode. */
+	uint8_t		cie_personality_encode; /* Personality encode. */
+	uint8_t		cie_lsda_encode; /* LSDA encode. */
 	Dwarf_Ptr	cie_initinst;	/* Initial instructions. */
 	Dwarf_Unsigned	cie_instlen;	/* Length of init instructions. */
 	STAILQ_ENTRY(_Dwarf_Cie) cie_next;  /* Next CIE in list. */
