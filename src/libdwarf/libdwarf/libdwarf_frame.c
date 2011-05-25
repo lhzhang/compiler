@@ -1461,15 +1461,18 @@ _dwarf_frame_gen_cie(Dwarf_P_Debug dbg, Dwarf_P_Section ds, Dwarf_P_Cie cie,
 				RCHECK(WRITE_ULEB128(len));
 			break;
 			case 'P':
-				RCHECK(WRITE_VALUE(0, 1));   // Personality encoding
+				RCHECK(WRITE_VALUE(cie->cie_personality_encode, 1));   // Personality encoding
+				/* TODO: do this for other encodings than
+				 * absptr, how?
+				 */
 				RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_data_reloc_by_str_id,
 				    dbg->dbg_pointer_size, ds->ds_size, cie->cie_personality, 0, 0, error));
 			break;
 			case 'L':
-				RCHECK(WRITE_VALUE(DW_EH_PE_absptr, 1));   // hardcoded for now
+				RCHECK(WRITE_VALUE(cie->cie_lsda_encode, 1));
 			break;
 			case 'R':
-				RCHECK(WRITE_VALUE(DW_EH_PE_absptr, 1));
+				RCHECK(WRITE_VALUE(cie->cie_fde_encode, 1));
 			break;
 			default:
 				printf("SHOULD WRITE AUGMENTATION DATA HERE: %c\n", *augment);
@@ -1542,15 +1545,39 @@ _dwarf_frame_gen_fde(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
 	else
 		RCHECK(WRITE_VALUE(fde->fde_adrange, dbg->dbg_pointer_size));
 
-	/* TODO: Dont hardcode this. */
 	const char *augment = fde->fde_cie->cie_augment;
-	if (strcmp(augment, "zPL") == 0) {
-		/* Size */
-		RCHECK(WRITE_ULEB128(dbg->dbg_pointer_size));
-
-		if (fde->fde_ex_symndx != 0)
-			RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_segment_rel,
-			    dbg->dbg_pointer_size, ds->ds_size, fde->fde_ex_symndx, 0, NULL, error));
+	if (augment != NULL && strlen(augment) > 0) {
+		unsigned len = 0;
+		do {
+			switch (*augment) {
+			case 'z': len += 1; break;
+			case 'L': 
+				switch (fde->fde_cie->cie_lsda_encode & 0xf) {
+					case DW_EH_PE_absptr: len += dbg->dbg_pointer_size; break;
+					case DW_EH_PE_udata2:
+					case DW_EH_PE_sdata2: len += 2; break;
+					case DW_EH_PE_udata4:
+					case DW_EH_PE_sdata4: len += 4; break;
+					case DW_EH_PE_udata8:
+					case DW_EH_PE_sdata8: len += 8; break;
+					default:
+					assert(0 && "not yet");
+				}
+			break;
+			}
+		} while (*++augment);
+		augment = fde->fde_cie->cie_augment;
+		do {
+			switch (*augment) {
+			case 'z': 
+				RCHECK(WRITE_ULEB128(dbg->dbg_pointer_size));
+			break;
+			case 'L': 
+				RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_segment_rel,
+				    dbg->dbg_pointer_size, ds->ds_size, fde->fde_ex_symndx, 0, NULL, error));
+			break;
+			}
+		} while (*++augment);
 	}
 
 	/* Write FDE frame instructions. */
