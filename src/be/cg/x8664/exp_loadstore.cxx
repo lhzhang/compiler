@@ -915,10 +915,12 @@ Exp_Ldst (
     }
   }
 
-  // bug 1450
-  if (!strncmp (".gnu.linkonce.", ST_name (base_sym), strlen (".gnu.linkonce."))
-      && (ofst == base_ofst)) {
-    base_sym = sym;
+  if (ST_class(base_sym) != CLASS_CONST) {
+      // bug 1450
+      if (!strncmp (".gnu.linkonce.", ST_name (base_sym), strlen (".gnu.linkonce."))
+	  && (ofst == base_ofst)) {
+	base_sym = sym;
+      }
   }
   
   if (is_lda) {
