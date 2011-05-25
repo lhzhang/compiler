@@ -388,6 +388,10 @@ Em_Dwarf_Begin (BOOL is_64bit, BOOL dwarf_trace, BOOL is_cplus,
 
 #ifdef TARG_X8664
   // Generate a CIE for .eh_frame only if it is C++ or if -DEBUG:eh_frame=on
+  unsigned data_modifier = DW_EH_PE_sdata4;
+  if (is_64bit)
+    data_modifier = DW_EH_PE_sdata8;
+  int is_pic = Gen_PIC_Call_Shared || Gen_PIC_Shared;
   if (is_cplus || DEBUG_Emit_Ehframe)
     eh_cie_index = dwarf_add_frame_cie_eh (dw_dbg, (char *)augmenter,
 		    1, data_alignment_factor,
@@ -398,9 +402,9 @@ Em_Dwarf_Begin (BOOL is_64bit, BOOL dwarf_trace, BOOL is_cplus,
 		    personality,
 		    cie_init_bytes,
 		    cie_init_byte_len,
-                    (Gen_PIC_Call_Shared || Gen_PIC_Shared) ? 0x9b : 0,
-                    (Gen_PIC_Call_Shared || Gen_PIC_Shared) ? 0x1b : 0,
-                    (Gen_PIC_Call_Shared || Gen_PIC_Shared) ? 0x1b : 0,
+                    is_pic ? 0x90 | data_modifier : DW_EH_PE_absptr,
+                    is_pic ? DW_EH_PE_pcrel | data_modifier : DW_EH_PE_absptr,
+                    is_pic ? DW_EH_PE_pcrel | data_modifier: DW_EH_PE_absptr,
 		    &dw_error);
 #elif defined(TARG_MIPS)
   // Generate a CIE for .eh_frame only if it is C++ or if -DEBUG:eh_frame=on
