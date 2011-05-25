@@ -1570,7 +1570,7 @@ _dwarf_frame_gen_fde(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
 		do {
 			switch (*augment) {
 			case 'z': 
-				RCHECK(WRITE_ULEB128(dbg->dbg_pointer_size));
+				RCHECK(WRITE_ULEB128(len));
 			break;
 			case 'L': 
 				RCHECK(_dwarf_reloc_entry_add(dbg, drs, ds, dwarf_drt_segment_rel,
