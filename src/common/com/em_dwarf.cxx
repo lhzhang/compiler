@@ -396,24 +396,24 @@ Em_Dwarf_Begin (BOOL is_64bit, BOOL dwarf_trace, BOOL is_cplus,
 		    // specify what is the right column for x86.
 		    return_reg,
 		    personality,
-#if 0
-		    (Gen_PIC_Call_Shared || Gen_PIC_Shared),
-		    is_64bit,
-#endif
 		    cie_init_bytes,
 		    cie_init_byte_len,
+                    (Gen_PIC_Call_Shared || Gen_PIC_Shared) ? 0x9b : 0,
+                    (Gen_PIC_Call_Shared || Gen_PIC_Shared) ? 0x1b : 0,
+                    (Gen_PIC_Call_Shared || Gen_PIC_Shared) ? 0x1b : 0,
 		    &dw_error);
 #elif defined(TARG_MIPS)
   // Generate a CIE for .eh_frame only if it is C++ or if -DEBUG:eh_frame=on
   if (is_cplus || DEBUG_Emit_Ehframe)
-    eh_cie_index = dwf_add_ehframe_cie (dw_dbg, augmenter,
+    eh_cie_index = dwarf_add_frame_cie_eh (dw_dbg, (char *)augmenter,
 		    1, data_alignment_factor,
 		    DW_FRAME_RA_COL,
 		    personality,
-		    0,
-		    is_64bit,
 		    init_bytes,
 		    sizeof(init_bytes),
+                    0,
+                    0,
+                    0,
 		    &dw_error);
 #endif
   return dw_dbg;

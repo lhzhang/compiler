@@ -466,7 +466,7 @@ Dwarf_Unsigned	dwarf_add_frame_cie(Dwarf_P_Debug, char *, Dwarf_Small,
 		    Dwarf_Error *);
 Dwarf_Unsigned	dwarf_add_frame_cie_eh(Dwarf_P_Debug, char *, Dwarf_Small,
 		    Dwarf_Small, Dwarf_Small, Dwarf_Unsigned, Dwarf_Ptr,
-		    Dwarf_Unsigned, Dwarf_Error *);
+		    Dwarf_Unsigned, uint8_t, uint8_t, uint8_t, Dwarf_Error *);
 Dwarf_P_Fde	dwarf_add_fde_inst(Dwarf_P_Fde, Dwarf_Small, Dwarf_Unsigned,
 		    Dwarf_Unsigned, Dwarf_Error *);
 Dwarf_Unsigned	dwarf_add_frame_fde(Dwarf_P_Debug, Dwarf_P_Fde, Dwarf_P_Die,

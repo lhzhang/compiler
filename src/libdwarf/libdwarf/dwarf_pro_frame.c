@@ -49,7 +49,8 @@ dwarf_new_fde(Dwarf_P_Debug dbg, Dwarf_Error *error)
 static Dwarf_Unsigned
 _dwarf_add_frame_cie(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
     Dwarf_Small daf, Dwarf_Small ra, Dwarf_Unsigned personality, Dwarf_Ptr initinst,
-    Dwarf_Unsigned inst_len, Dwarf_Error *error, int is_eh)
+    Dwarf_Unsigned inst_len, uint8_t personality_enc, uint8_t lsda, uint8_t fde,
+    Dwarf_Error *error, int is_eh)
 {
 	Dwarf_P_Cie cie;
 
@@ -81,6 +82,10 @@ _dwarf_add_frame_cie(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
 	cie->cie_daf = (int8_t) daf; /* daf is signed. */
 	cie->cie_ra = ra;
 	cie->cie_personality = personality;
+	/* Sane defaults for encoding. */
+	cie->cie_personality_encode = personality_enc;
+	cie->cie_lsda_encode = lsda;
+	cie->cie_fde_encode = fde;
 	if (initinst != NULL && inst_len > 0) {
 		cie->cie_initinst = malloc((size_t) inst_len);
 		if (cie->cie_initinst == NULL) {
@@ -97,10 +102,11 @@ _dwarf_add_frame_cie(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
 Dwarf_Unsigned
 dwarf_add_frame_cie_eh(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
     Dwarf_Small daf, Dwarf_Small ra, Dwarf_Unsigned personality, Dwarf_Ptr initinst,
-    Dwarf_Unsigned inst_len, Dwarf_Error *error)
+    Dwarf_Unsigned inst_len, uint8_t personality_enc, uint8_t lsda, uint8_t fde,
+    Dwarf_Error *error)
 {
 	_dwarf_add_frame_cie(dbg, augmenter, caf, daf, ra, personality,
-	    initinst, inst_len, error, 1/*is_eh*/);
+	    initinst, inst_len, personality_enc, lsda, fde, error, 1/*is_eh*/);
 }
 
 Dwarf_Unsigned
@@ -109,7 +115,7 @@ dwarf_add_frame_cie(Dwarf_P_Debug dbg, char *augmenter, Dwarf_Small caf,
     Dwarf_Unsigned inst_len, Dwarf_Error *error)
 {
 	_dwarf_add_frame_cie(dbg, augmenter, caf, daf, ra, 0/*personality*/,
-	    initinst, inst_len, error, 0/*is_eh*/);
+	    initinst, inst_len, 0, 0, 0, error, 0/*is_eh*/);
 }
 
 static Dwarf_Unsigned
