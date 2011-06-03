@@ -878,7 +878,7 @@ cwh_stmt_call_helper(INT32 num_args, TY_IDX ty, INT32 inline_state, INT64 flags)
 		 TY_kind(TY_pointed(ST_type(st))) == KIND_FUNCTION),
                 ("Odd ST"));
 
-      tr = TY_ret_type(TY_pointed(ST_type(st)));
+      tr = ts = TY_ret_type(TY_pointed(ST_type(st)));
     }
   }
 

@@ -13507,7 +13507,6 @@ static void send_attr_ntry(int		attr_idx)
       ((long64) AT_DEFINED(attr_idx) 		<< FEI_OBJECT_DEFINED) |
       ((long64) AT_REF_IN_CHILD(attr_idx) 	<< FEI_OBJECT_INNER_REF) |
       ((long64) AT_DEF_IN_CHILD(attr_idx) 	<< FEI_OBJECT_INNER_DEF) |
-      ((long64) ATD_POINTER(attr_idx) 		<< FEI_OBJECT_DV_IS_PTR) |
       ((long64) ATD_IM_A_DOPE(attr_idx)		<< FEI_OBJECT_IS_DOPE_VEC) |
       ((long64) ATD_IN_COMMON(attr_idx)		<< FEI_OBJECT_IN_COMMON) |
       ((long64) ATD_PERMUTATION(attr_idx) 	<< FEI_OBJECT_PERMUTATION) |
@@ -13523,6 +13522,9 @@ static void send_attr_ntry(int		attr_idx)
 #endif /* KEY Bug 14150 */
       ((long64) AT_NAMELIST_OBJ(attr_idx) 	<< FEI_OBJECT_NAMELIST_ITEM));
 
+      if (ATD_POINTER(attr_idx) &&
+	  TYP_LINEAR(ATD_TYPE_IDX(attr_idx)) != Proc_Ptr)
+	  flag |= 1LL << FEI_OBJECT_DV_IS_PTR;
 
       if (ATD_CLASS(attr_idx) == Compiler_Tmp ||
           ATD_CLASS(attr_idx) == Variable) {
