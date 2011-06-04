@@ -1565,7 +1565,8 @@ void	array_dim_resolution(int 	attr_idx,
 #else /* KEY Bug 10177 */
    int			type;
 #endif /* KEY Bug 10177 */
-
+   int                  m_tbl;
+   int                  m_idx;
 
    TRACE (Func_Entry, "array_dim_resolution", NULL);
 
@@ -2072,19 +2073,28 @@ void	array_dim_resolution(int 	attr_idx,
       /* Calculate length.                                */
 
       if (dim < BD_RANK(bd_idx)) {
-         NTR_IR_TBL(ir_idx);		/* Create Stride * Extent */
-         IR_OPR(ir_idx)			= Mult_Opr;
-         IR_TYPE_IDX(ir_idx)		= SA_INTEGER_DEFAULT_TYPE;
-         IR_LINE_NUM(ir_idx)		= BD_LINE_NUM(bd_idx);
-         IR_COL_NUM(ir_idx)		= BD_COLUMN_NUM(bd_idx);
-         IR_FLD_L(ir_idx)		= stride.fld;
-         IR_IDX_L(ir_idx)		= stride.idx;
-         IR_LINE_NUM_L(ir_idx)		= BD_LINE_NUM(bd_idx);
-         IR_COL_NUM_L(ir_idx)		= BD_COLUMN_NUM(bd_idx);
-         IR_FLD_R(ir_idx)		= extent_fld;
-         IR_IDX_R(ir_idx)		= extent_idx;
-         IR_LINE_NUM_R(ir_idx)		= BD_LINE_NUM(bd_idx);
-         IR_COL_NUM_R(ir_idx)		= BD_COLUMN_NUM(bd_idx);
+
+	 if (stride.fld == NO_Tbl_Idx) {
+	     m_tbl = CN_Tbl_Idx;
+	     m_idx = CN_INTEGER_ZERO_IDX;
+	 }
+	 else {
+	     m_tbl = IR_Tbl_Idx;
+
+	     NTR_IR_TBL(m_idx);	/* Create Stride * Extent */
+	     IR_OPR(m_idx)		= Mult_Opr;
+	     IR_TYPE_IDX(m_idx)		= SA_INTEGER_DEFAULT_TYPE;
+	     IR_LINE_NUM(m_idx)		= BD_LINE_NUM(bd_idx);
+	     IR_COL_NUM(m_idx)		= BD_COLUMN_NUM(bd_idx);
+	     IR_FLD_L(m_idx)		= stride.fld;
+	     IR_IDX_L(m_idx)		= stride.idx;
+	     IR_LINE_NUM_L(m_idx)	= BD_LINE_NUM(bd_idx);
+	     IR_COL_NUM_L(m_idx)	= BD_COLUMN_NUM(bd_idx);
+	     IR_FLD_R(m_idx)		= extent_fld;
+	     IR_IDX_R(m_idx)		= extent_idx;
+	     IR_LINE_NUM_R(m_idx)	= BD_LINE_NUM(bd_idx);
+	     IR_COL_NUM_R(m_idx)	= BD_COLUMN_NUM(bd_idx);
+	 }
 
          if (BD_ARRAY_SIZE(bd_idx) == Symbolic_Constant_Size) {
             IR_OPR(ir_idx)	= Symbolic_Mult_Opr;
@@ -2092,13 +2102,13 @@ void	array_dim_resolution(int 	attr_idx,
             stride.idx		= gen_compiler_tmp(line, column, Priv, TRUE);
 
             ATD_TYPE_IDX(stride.idx)		= SA_INTEGER_DEFAULT_TYPE;
-            ATD_FLD(stride.idx)			= IR_Tbl_Idx;
-            ATD_TMP_IDX(stride.idx)		= ir_idx;
+            ATD_FLD(stride.idx)			= m_tbl;
+            ATD_TMP_IDX(stride.idx)		= m_idx;
             ATD_SYMBOLIC_CONSTANT(stride.idx)	= TRUE;
          }
          else {
-            OPND_FLD(opnd)		= IR_Tbl_Idx;
-            OPND_IDX(opnd)		= ir_idx;
+	    OPND_FLD(opnd)		= m_tbl;
+            OPND_IDX(opnd)		= m_idx;
             OPND_LINE_NUM(opnd)		= stmt_start_line;
             OPND_COL_NUM(opnd)		= stmt_start_col;
 
