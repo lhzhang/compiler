@@ -216,6 +216,8 @@ _dwarf_abbrev_gen(Dwarf_P_Debug dbg, Dwarf_Error *error)
 	}
 	/* End of abbreviation for this CU. */
 	RCHECK(WRITE_ULEB128(0));
+        /* Extra 0 for multiple CU files - see bug 294. */
+	RCHECK(WRITE_ULEB128(0));
 
 	/* Notify the creation of .debug_abbrev ELF section. */
 	RCHECK(_dwarf_section_callback(dbg, ds, SHT_PROGBITS, 0, 0, 0, error));
