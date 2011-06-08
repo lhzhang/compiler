@@ -31,12 +31,16 @@ dwarf_dealloc(Dwarf_Debug dbg, Dwarf_Ptr p, Dwarf_Unsigned alloc_type)
 {
 	/*
 	 * This libdwarf implementation does not use the SGI/libdwarf
-	 * style of memory allocation. It does not copy things to return
-	 * to the client, so the client does not need to remember to
-	 * free them.
+	 * style of memory allocation. In most cases it does not copy
+	 * things to return to the client, so the client does not need
+	 * to remember to free them.  The remaining cases are handled
+	 * below.
 	 */
 
-	(void) dbg; (void) p; (void) alloc_type;
+	(void) dbg;
+
+	if (alloc_type == DW_DLA_FRAME_BLOCK)
+		free(p);
 }
 
 void
@@ -65,4 +69,20 @@ dwarf_ranges_dealloc(Dwarf_Debug dbg, Dwarf_Ranges *ranges,
 	 */
 
 	(void) dbg; (void) ranges; (void) range_count;
+}
+
+void
+dwarf_fde_cie_list_dealloc(Dwarf_Debug dbg, Dwarf_Cie *cie_list,
+    Dwarf_Signed cie_count, Dwarf_Fde *fde_list, Dwarf_Signed fde_count)
+{
+	/*
+	 * In this implementation, FDE and CIE information is managed
+	 * as part of the Dwarf_Debug object.  The client does not need
+	 * to explicitly free these memory arenas.
+	 */
+	(void) dbg;
+	(void) cie_list;
+	(void) cie_count;
+	(void) fde_list;
+	(void) fde_count;
 }

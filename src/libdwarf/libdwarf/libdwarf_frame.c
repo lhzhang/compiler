@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009,2010 Kai Wang
+ * Copyright (c) 2009-2011 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1118,7 +1118,7 @@ _dwarf_frame_get_fop(Dwarf_Debug dbg, uint8_t *insts, Dwarf_Unsigned len,
 	ret = _dwarf_frame_convert_inst(dbg, insts, len, &count, oplist, NULL,
 	    error);
 	if (ret != DW_DLE_NONE) {
-		_dwarf_frame_free_fop(oplist, count);
+		free(oplist);
 		return (ret);
 	}
 
@@ -1126,14 +1126,6 @@ _dwarf_frame_get_fop(Dwarf_Debug dbg, uint8_t *insts, Dwarf_Unsigned len,
 	*ret_opcnt = count;
 
 	return (DW_DLE_NONE);
-}
-
-void
-_dwarf_frame_free_fop(Dwarf_Frame_Op *oplist, Dwarf_Unsigned count)
-{
-
-	(void) count;
-	free(oplist);
 }
 
 int
@@ -1251,11 +1243,34 @@ _dwarf_frame_cleanup(Dwarf_Debug dbg)
 }
 
 int
-_dwarf_frame_init(Dwarf_Debug dbg, Dwarf_Error *error)
+_dwarf_frame_section_load(Dwarf_Debug dbg, Dwarf_Error *error)
 {
-	Dwarf_Regtable3 *rt;
 	Dwarf_Section *ds;
-	int ret;
+
+	if ((ds = _dwarf_find_section(dbg, ".debug_frame")) != NULL) {
+		return (_dwarf_frame_section_init(dbg, &dbg->dbg_frame,
+		    ds, 0, error));
+	}
+
+	return (DW_DLE_NONE);
+}
+
+int
+_dwarf_frame_section_load_eh(Dwarf_Debug dbg, Dwarf_Error *error)
+{
+	Dwarf_Section *ds;
+
+	if ((ds = _dwarf_find_section(dbg, ".eh_frame")) != NULL) {
+		return (_dwarf_frame_section_init(dbg, &dbg->dbg_eh_frame,
+		    ds, 1, error));
+	}
+
+	return (DW_DLE_NONE);
+}
+
+void
+_dwarf_frame_params_init(Dwarf_Debug dbg)
+{
 
 	/* Initialise call frame related parameters. */
 	dbg->dbg_frame_rule_table_size = DW_FRAME_LAST_REG_NUM;
@@ -1263,6 +1278,15 @@ _dwarf_frame_init(Dwarf_Debug dbg, Dwarf_Error *error)
 	dbg->dbg_frame_cfa_value = DW_FRAME_CFA_COL3;
 	dbg->dbg_frame_same_value = DW_FRAME_SAME_VAL;
 	dbg->dbg_frame_undefined_value = DW_FRAME_UNDEFINED_VAL;
+}
+
+int
+_dwarf_frame_interal_table_init(Dwarf_Debug dbg, Dwarf_Error *error)
+{
+	Dwarf_Regtable3 *rt;
+
+	if (dbg->dbg_internal_reg_table != NULL)
+		return (DW_DLE_NONE);
 
 	/* Initialise internal register table. */
 	if ((rt = calloc(1, sizeof(Dwarf_Regtable3))) == NULL) {
@@ -1276,27 +1300,6 @@ _dwarf_frame_init(Dwarf_Debug dbg, Dwarf_Error *error)
 		free(rt);
 		DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
 		return (DW_DLE_MEMORY);
-	}
-
-	/*
-	 * Initialise call frame sections.
-	 */
-
-	if ((ds = _dwarf_find_section(dbg, ".debug_frame")) != NULL) {
-		ret = _dwarf_frame_section_init(dbg, &dbg->dbg_frame, ds, 0,
-		    error);
-		if (ret != DW_DLE_NONE) {
-			free(rt);
-			return (ret);
-		}
-	}
-	if ((ds = _dwarf_find_section(dbg, ".eh_frame")) != NULL) {
-		ret = _dwarf_frame_section_init(dbg, &dbg->dbg_eh_frame, ds, 1,
-		    error);
-		if (ret != DW_DLE_NONE) {
-			free(rt);
-			return (ret);
-		}
 	}
 
 	dbg->dbg_internal_reg_table = rt;

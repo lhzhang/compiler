@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Kai Wang
+ * Copyright (c) 2009,2011 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,9 +38,18 @@ dwarf_get_fde_list(Dwarf_Debug dbg, Dwarf_Cie **cie_list,
 		return (DW_DLV_ERROR);
 	}
 
+	if (dbg->dbg_internal_reg_table == NULL) {
+		if (_dwarf_frame_interal_table_init(dbg, error) != DW_DLE_NONE)
+			return (DW_DLV_ERROR);
+	}
+
 	if (dbg->dbg_frame == NULL) {
-		DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
-		return (DW_DLV_NO_ENTRY);
+		if (_dwarf_frame_section_load(dbg, error) != DW_DLE_NONE)
+			return (DW_DLV_ERROR);
+		if (dbg->dbg_frame == NULL) {
+			DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
+			return (DW_DLV_NO_ENTRY);
+		}
 	}
 
 	if (dbg->dbg_frame->fs_ciearray == NULL ||
@@ -69,9 +78,18 @@ dwarf_get_fde_list_eh(Dwarf_Debug dbg, Dwarf_Cie **cie_list,
 		return (DW_DLV_ERROR);
 	}
 
+	if (dbg->dbg_internal_reg_table == NULL) {
+		if (_dwarf_frame_interal_table_init(dbg, error) != DW_DLE_NONE)
+			return (DW_DLV_ERROR);
+	}
+
 	if (dbg->dbg_eh_frame == NULL) {
-		DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
-		return (DW_DLV_NO_ENTRY);
+		if (_dwarf_frame_section_load_eh(dbg, error) != DW_DLE_NONE)
+			return (DW_DLV_ERROR);
+		if (dbg->dbg_eh_frame == NULL) {
+			DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
+			return (DW_DLV_NO_ENTRY);
+		}
 	}
 
 	if (dbg->dbg_eh_frame->fs_ciearray == NULL ||
@@ -275,6 +293,12 @@ dwarf_get_fde_info_for_reg(Dwarf_Fde fde, Dwarf_Half table_column,
 		return (DW_DLV_ERROR);
 	}
 
+	if (pc_requested < fde->fde_initloc ||
+	    pc_requested >= fde->fde_initloc + fde->fde_adrange) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_PC_NOT_IN_FDE_RANGE);
+		return (DW_DLV_ERROR);
+	}
+
 	ret = _dwarf_frame_get_internal_table(fde, pc_requested, &rt, &pc,
 	    error);
 	if (ret != DW_DLE_NONE)
@@ -321,6 +345,12 @@ dwarf_get_fde_info_for_all_regs(Dwarf_Fde fde, Dwarf_Addr pc_requested,
 	}
 
 	assert(dbg != NULL);
+
+	if (pc_requested < fde->fde_initloc ||
+	    pc_requested >= fde->fde_initloc + fde->fde_adrange) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_PC_NOT_IN_FDE_RANGE);
+		return (DW_DLV_ERROR);
+	}
 
 	ret = _dwarf_frame_get_internal_table(fde, pc_requested, &rt, &pc,
 	    error);
@@ -382,6 +412,12 @@ dwarf_get_fde_info_for_reg3(Dwarf_Fde fde, Dwarf_Half table_column,
 		return (DW_DLV_ERROR);
 	}
 
+	if (pc_requested < fde->fde_initloc ||
+	    pc_requested >= fde->fde_initloc + fde->fde_adrange) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_PC_NOT_IN_FDE_RANGE);
+		return (DW_DLV_ERROR);
+	}
+
 	ret = _dwarf_frame_get_internal_table(fde, pc_requested, &rt, &pc,
 	    error);
 	if (ret != DW_DLE_NONE)
@@ -422,6 +458,12 @@ dwarf_get_fde_info_for_cfa_reg3(Dwarf_Fde fde, Dwarf_Addr pc_requested,
 		return (DW_DLV_ERROR);
 	}
 
+	if (pc_requested < fde->fde_initloc ||
+	    pc_requested >= fde->fde_initloc + fde->fde_adrange) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_PC_NOT_IN_FDE_RANGE);
+		return (DW_DLV_ERROR);
+	}
+
 	ret = _dwarf_frame_get_internal_table(fde, pc_requested, &rt, &pc,
 	    error);
 	if (ret != DW_DLE_NONE)
@@ -459,6 +501,12 @@ dwarf_get_fde_info_for_all_regs3(Dwarf_Fde fde, Dwarf_Addr pc_requested,
 
 	assert(dbg != NULL);
 
+	if (pc_requested < fde->fde_initloc ||
+	    pc_requested >= fde->fde_initloc + fde->fde_adrange) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_PC_NOT_IN_FDE_RANGE);
+		return (DW_DLV_ERROR);
+	}
+
 	ret = _dwarf_frame_get_internal_table(fde, pc_requested, &rt, &pc,
 	    error);
 	if (ret != DW_DLE_NONE)
@@ -493,21 +541,6 @@ dwarf_expand_frame_instructions(Dwarf_Cie cie, Dwarf_Ptr instruction,
 	    error);
 	if (ret != DW_DLE_NONE)
 		return (DW_DLV_ERROR);
-
-	return (DW_DLV_OK);
-}
-
-int
-dwarf_frame_instructions_dealloc(Dwarf_Frame_Op *oplist, Dwarf_Signed opcnt,
-    Dwarf_Error *error)
-{
-
-	if (oplist == NULL || opcnt == 0) {
-		DWARF_SET_ERROR(NULL, error, DW_DLE_ARGUMENT);
-		return (DW_DLV_ERROR);
-	}
-
-	_dwarf_frame_free_fop(oplist, opcnt);
 
 	return (DW_DLV_OK);
 }

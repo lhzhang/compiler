@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Kai Wang
+ * Copyright (c) 2009,2011 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,8 @@ int
 dwarf_get_$1s(Dwarf_Debug dbg, Dwarf_$2 **$1s,
     Dwarf_Signed *ret_count, Dwarf_Error *error)
 {
+	Dwarf_Section *ds;
+	int ret;
 
 	if (dbg == NULL || $1s == NULL || ret_count == NULL) {
 		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
@@ -36,8 +38,16 @@ dwarf_get_$1s(Dwarf_Debug dbg, Dwarf_$2 **$1s,
 	}
 
 	if (dbg->dbg_$1s == NULL) {
-		DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
-		return (DW_DLV_NO_ENTRY);
+		if ((ds = _dwarf_find_section(dbg, ".debug_$4")) != NULL) {
+			ret = _dwarf_nametbl_init(dbg, &dbg->dbg_$1s, ds,
+			    error);
+			if (ret != DW_DLE_NONE)
+				return (DW_DLV_ERROR);
+		}
+		if (dbg->dbg_$1s == NULL) {
+			DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
+			return (DW_DLV_NO_ENTRY);
+		}
 	}
 
 	*$1s = dbg->dbg_$1s->ns_array;
@@ -112,7 +122,6 @@ dwarf_$1_name_offsets(Dwarf_$2 $1, char **ret_name, Dwarf_Off *die_offset,
     Dwarf_Off *cu_offset, Dwarf_Error *error)
 {
 	Dwarf_CU cu;
-	Dwarf_Die die;
 	Dwarf_Debug dbg;
 	Dwarf_NameTbl nt;
 
@@ -130,12 +139,9 @@ dwarf_$1_name_offsets(Dwarf_$2 $1, char **ret_name, Dwarf_Off *die_offset,
 	cu = nt->nt_cu;
 	assert(cu != NULL);
 
-	die = STAILQ_FIRST(&cu->cu_die);
-	assert(die != NULL);
-
 	*ret_name = $1->np_name;
 	*die_offset = nt->nt_cu_offset + $1->np_offset;
-	*cu_offset = die->die_offset;
+	*cu_offset = cu->cu_1st_offset;
 
 	return (DW_DLV_OK);
 }

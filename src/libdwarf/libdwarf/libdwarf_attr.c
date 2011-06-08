@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2007 John Birrell (jb@freebsd.org)
- * Copyright (c) 2009,2010 Kai Wang
+ * Copyright (c) 2009-2011 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,63 +71,6 @@ _dwarf_attr_add(Dwarf_Die die, Dwarf_Attribute atref, Dwarf_Attribute *atp,
 		default:
 			break;
 		}
-	}
-
-	/*
-	 * If current die is DW_TAG_compile_unit and current attr
-	 * is DW_AT_stmt_list, then this CU has line number infomation
-	 * needs to be initialized.
-	 */
-	if (die->die_ab->ab_tag == DW_TAG_compile_unit &&
-	    at->at_attrib == DW_AT_stmt_list) {
-		ret = _dwarf_lineno_init(die, at->u[0].u64, error);
-		if (ret != DW_DLE_NONE)
-			return (ret);
-	}
-
-	/*
-	 * If the attribute points to a loclist or the attribute
-	 * contains a locdesc, find and save it.
-	 */
-	switch (at->at_attrib) {
-	case DW_AT_location:
-	case DW_AT_string_length:
-	case DW_AT_return_addr:
-	case DW_AT_data_member_location:
-	case DW_AT_frame_base:
-	case DW_AT_segment:
-	case DW_AT_static_link:
-	case DW_AT_use_location:
-	case DW_AT_vtable_elem_location:
-		switch (at->at_form) {
-		case DW_FORM_data4:
-		case DW_FORM_data8:
-			ret = _dwarf_loclist_add(die->die_cu->cu_dbg,
-			    die->die_cu, at->u[0].u64, error);
-			if (ret != DW_DLE_NONE)
-				return (ret);
-			break;
-		case DW_FORM_block:
-		case DW_FORM_block1:
-		case DW_FORM_block2:
-		case DW_FORM_block4:
-			ret = _dwarf_loc_add(die, at, error);
-			if (ret != DW_DLE_NONE)
-				return (ret);
-			break;
-		default:
-			break;
-		}
-	default:
-		break;
-	}
-
-	/* If the attribute points to a range list, find and save it. */
-	if (at->at_attrib == DW_AT_ranges) {
-		ret = _dwarf_ranges_add(die->die_cu->cu_dbg, die->die_cu,
-		    at->u[0].u64, error);
-		if (ret != DW_DLE_NONE)
-			return (ret);
 	}
 
 	if (atp != NULL)
@@ -486,7 +429,6 @@ _dwarf_add_string_attr(Dwarf_P_Die die, Dwarf_P_Attribute *atp, Dwarf_Half attr,
 		return (ret);
 	}
 	at->u[1].s = _dwarf_strtab_get_table(dbg) + at->u[0].u64;
-	die->die_name = at->u[1].s;
 
 	*atp = at;
 

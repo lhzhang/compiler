@@ -249,6 +249,42 @@ typedef struct {
 } Dwarf_Macro_Details;
 
 /*
+ * Symbols denoting allocation types, for use with dwarf_dealloc(3).
+ */
+
+enum Dwarf_Allocation_Type {
+	DW_DLA_ABBREV,
+	DW_DLA_ADDR,
+	DW_DLA_ARANGE,
+	DW_DLA_ATTR,
+	DW_DLA_BLOCK,
+	DW_DLA_BOUNDS,
+	DW_DLA_CIE,
+	DW_DLA_DEBUG,
+	DW_DLA_DIE,
+	DW_DLA_ELLIST,
+	DW_DLA_ERROR,
+	DW_DLA_FDE,
+	DW_DLA_FRAME_BLOCK,
+	DW_DLA_FRAME_OP,
+	DW_DLA_FUNC,
+	DW_DLA_GLOBAL,
+	DW_DLA_LINE,
+	DW_DLA_LINEBUF,
+	DW_DLA_LIST,
+	DW_DLA_LOC,
+	DW_DLA_LOCDESC,
+	DW_DLA_LOC_BLOCK,
+	DW_DLA_RANGES,
+	DW_DLA_STRING,
+	DW_DLA_SUBSCR,
+	DW_DLA_TYPE,
+	DW_DLA_TYPENAME,
+	DW_DLA_VAR,
+	DW_DLA_WEAK
+};
+
+/*
  * Relocation Type.
  */
 enum Dwarf_Rel_Type {
@@ -306,6 +342,7 @@ enum {
 	DW_DLE_FRAME_VERSION_BAD,	/* Invalid frame section version. */
 	DW_DLE_FRAME_TABLE_COL_BAD,	/* Invalid table column. */
 	DW_DLE_DF_REG_NUM_TOO_HIGH,	/* Insufficient regtable space. */
+	DW_DLE_PC_NOT_IN_FDE_RANGE,	/* PC requested not in the FDE range. */
 	DW_DLE_ARANGE_OFFSET_BAD,	/* Invalid arange offset. */
 	DW_DLE_DEBUG_MACRO_INCONSISTENT,/* Invalid macinfo data. */
 	DW_DLE_ELF_SECT_ERR,		/* Application callback failed. */
@@ -530,10 +567,10 @@ Dwarf_Addr	dwarf_expr_into_block(Dwarf_P_Expr, Dwarf_Unsigned *,
 		    Dwarf_Error *);
 Dwarf_P_Fde	dwarf_fde_cfa_offset(Dwarf_P_Fde, Dwarf_Unsigned, Dwarf_Signed,
 		    Dwarf_Error *);
+void		dwarf_fde_cie_list_dealloc(Dwarf_Debug, Dwarf_Cie *,
+		    Dwarf_Signed, Dwarf_Fde *, Dwarf_Signed);
 char		*dwarf_find_macro_value_start(char *);
 int		dwarf_finish(Dwarf_Debug, Dwarf_Error *);
-int		dwarf_frame_instructions_dealloc(Dwarf_Frame_Op *, Dwarf_Signed,
-		    Dwarf_Error *);
 int		dwarf_func_cu_offset(Dwarf_Func, Dwarf_Off *, Dwarf_Error *);
 int		dwarf_func_die_offset(Dwarf_Func, Dwarf_Off *,
 		    Dwarf_Error *);

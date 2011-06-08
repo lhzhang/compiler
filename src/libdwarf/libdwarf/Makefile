@@ -94,6 +94,7 @@ MAN=	dwarf_attr.3					\
 	dwarf_dieoffset.3				\
 	dwarf_errmsg.3					\
 	dwarf_errno.3					\
+	dwarf_expand_frame_instructions.3		\
 	dwarf_find_macro_value_start.3			\
 	dwarf_finish.3					\
 	dwarf_formaddr.3				\
@@ -114,8 +115,18 @@ MAN=	dwarf_attr.3					\
 	dwarf_get_arange.3				\
 	dwarf_get_aranges.3				\
 	dwarf_get_arange_info.3				\
+	dwarf_get_cie_index.3				\
+	dwarf_get_cie_info.3				\
+	dwarf_get_cie_of_fde.3				\
 	dwarf_get_cu_die_offset.3			\
 	dwarf_get_elf.3					\
+	dwarf_get_fde_at_pc.3				\
+	dwarf_get_fde_info_for_all_regs.3		\
+	dwarf_get_fde_info_for_reg.3			\
+	dwarf_get_fde_instr_bytes.3			\
+	dwarf_get_fde_list.3				\
+	dwarf_get_fde_n.3				\
+	dwarf_get_fde_range.3				\
 	dwarf_get_funcs.3				\
 	dwarf_get_globals.3				\
 	dwarf_get_macro_details.3			\
@@ -143,6 +154,7 @@ MLINKS+= \
 	dwarf_attrval_signed.3	dwarf_attrval_unsigned.3 \
 	dwarf_child.3	dwarf_offdie.3			\
 	dwarf_child.3	dwarf_siblingof.3		\
+	dwarf_dealloc.3	dwarf_fde_cie_list_dealloc.3	\
 	dwarf_dealloc.3	dwarf_funcs_dealloc.3		\
 	dwarf_dealloc.3	dwarf_globals_dealloc.3		\
 	dwarf_dealloc.3	dwarf_pubtypes_dealloc.3	\
@@ -179,6 +191,7 @@ MLINKS+= \
 	dwarf_get_AT_name.3	dwarf_get_VIRTUALITY_name.3 \
 	dwarf_get_AT_name.3	dwarf_get_VIS_name.3	\
 	dwarf_get_cu_die_offset.3 dwarf_get_arange_cu_header_offset.3 \
+	dwarf_get_fde_list.3	dwarf_get_fde_list_eh.3	\
 	dwarf_get_funcs.3	dwarf_func_die_offset.3	\
 	dwarf_get_funcs.3	dwarf_func_cu_offset.3	\
 	dwarf_get_funcs.3	dwarf_func_name_offsets.3 \
@@ -197,7 +210,7 @@ MLINKS+= \
 	dwarf_get_types.3	dwarf_type_name_offsets.3 \
 	dwarf_get_types.3	dwarf_typename.3	\
 	dwarf_get_vars.3	dwarf_var_die_offset.3	\
-	dwarf_get_vars.3	dwarf_var_cu_offset	\
+	dwarf_get_vars.3	dwarf_var_cu_offset.3	\
 	dwarf_get_vars.3	dwarf_var_name_offsets.3 \
 	dwarf_get_vars.3	dwarf_varname.3		\
 	dwarf_get_weaks.3	dwarf_weak_die_offset.3	\
