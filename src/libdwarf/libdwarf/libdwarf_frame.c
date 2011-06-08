@@ -1370,13 +1370,13 @@ _dwarf_frame_fde_add_inst(Dwarf_P_Fde fde, Dwarf_Small op, Dwarf_Unsigned val1,
 		RCHECK(WRITE_VALUE(val1, dbg->dbg_pointer_size));
 		break;
 	case DW_CFA_advance_loc1:
-		RCHECK(WRITE_VALUE(val1, 1));
+		RCHECK(WRITE_VALUE(val2 - val1, 1));
 		break;
 	case DW_CFA_advance_loc2:
-		RCHECK(WRITE_VALUE(val1, 2));
+		RCHECK(WRITE_VALUE(val2 - val1, 2));
 		break;
 	case DW_CFA_advance_loc4:
-		RCHECK(WRITE_VALUE(val1, 4));
+		RCHECK(WRITE_VALUE(val2 - val1, 4));
 		break;
 	case DW_CFA_offset_extended:
 	case DW_CFA_def_cfa:
