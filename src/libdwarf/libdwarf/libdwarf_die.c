@@ -455,7 +455,7 @@ _dwarf_die_gen(Dwarf_P_Debug dbg, Dwarf_CU cu, Dwarf_Rel_Section drs,
         // somewhere, for some reason any number seems to work, will have to 
         // analyze further.
 	if (!STAILQ_EMPTY(&dbg->dbgp_lineinfo->li_lnlist))
-		RCHECK(_dwarf_add_AT_dataref(dbg, die, DW_AT_stmt_list, 0, 1/* XXX: WRONG!*/,
+		RCHECK(_dwarf_add_AT_dataref(dbg, die, DW_AT_stmt_list, 0, 1/*XXX: WRONG!*/,
 		    ".debug_line", NULL, error));
 
 	RCHECK(_dwarf_die_gen_recursive(dbg, cu, drs, die, 0, error));
