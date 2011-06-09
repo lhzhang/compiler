@@ -99,21 +99,21 @@ Build_Fde_For_Proc (Dwarf_P_Debug dw_dbg, BB *firstbb,
 
   // Generate FDE instructions
   dwarf_add_fde_inst (fde, DW_CFA_advance_loc4, 
-		      begin_label, movespbp_label, &dw_error);
+		      movespbp_label - begin_label, 0, &dw_error);
   dwarf_add_fde_inst (fde, DW_CFA_def_cfa_offset, 
 		      Is_Target_64bit() ? 0x10 : 0x8, 
 		      0x0, &dw_error);
   dwarf_add_fde_inst (fde, DW_CFA_offset, Is_Target_64bit() ? 0x6 : 0x5, 
 		      0x2, &dw_error);
   dwarf_add_fde_inst (fde, DW_CFA_advance_loc4, 
-		      movespbp_label, adjustsp_label, &dw_error);
+		      adjustsp_label - movespbp_label, 0, &dw_error);
   dwarf_add_fde_inst (fde, DW_CFA_def_cfa_register, 
 		      Is_Target_64bit() ? 0x6 : 0x5, 0x0, &dw_error);
   if (Cgdwarf_Num_Callee_Saved_Regs()) {
     INT num = Cgdwarf_Num_Callee_Saved_Regs();    
     dwarf_add_fde_inst (fde, DW_CFA_advance_loc4, 
-			adjustsp_label,
-			callee_saved_reg, &dw_error);
+			callee_saved_reg - adjustsp_label,
+			0, &dw_error);
     for (INT i = num - 1; i >= 0; i --) {
       TN* tn = Cgdwarf_Nth_Callee_Saved_Reg(i);
       ST* sym = Cgdwarf_Nth_Callee_Saved_Reg_Location(i);
