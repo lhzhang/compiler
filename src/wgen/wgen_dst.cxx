@@ -3013,7 +3013,15 @@ DST_build(int num_copts, /* Number of options passed to fec(c) */
       // bug 12576: If available, use the original source file name.
       char * dump_base_name = Orig_Src_File_Name ? Orig_Src_File_Name :
                                                    Src_File_Name;
-      comp_unit_idx = DST_mk_compile_unit(Last_Pathname_Component(dump_base_name),
+
+      char *file_name;
+      if (strstr(dump_base_name, current_working_dir) != NULL)
+        file_name = dump_base_name + strlen(current_working_dir) + 1;
+      else if (*dump_base_name == '/')
+        file_name = Last_Pathname_Component(dump_base_name);
+      else
+        file_name = dump_base_name;
+      comp_unit_idx = DST_mk_compile_unit(file_name,
 					  current_host_dir,
 					  comp_info, 
 				lang_cplus ? DW_LANG_C_plus_plus : DW_LANG_C89,
@@ -3047,7 +3055,13 @@ WGEN_Set_Line_And_File (UINT line, const char* f, bool check)
 
 	// split file into directory path and file name
 	char *dir;
-	char *file_name = drop_path(file);;
+        char *file_name;
+        if (strstr(file, current_working_dir) != NULL)
+          file_name = file + strlen(current_working_dir) + 1;
+        else if (*file == '/')
+          file_name = drop_path(file);
+        else
+          file_name = file;
 #ifdef KEY
 	char * buf = (char *) alloca (strlen(file) + 1);
 #else
