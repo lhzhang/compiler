@@ -103,7 +103,7 @@ Build_Fde_For_Proc (Dwarf_P_Debug dw_dbg, BB *firstbb,
 
   // Generate FDE instructions
   dwarf_add_fde_inst (fde, DW_CFA_advance_loc4,
-                      adjustsp_label - begin_label, 0, &dw_error);
+                      begin_label, adjustsp_label, &dw_error);
 
   dwarf_add_fde_inst (fde, DW_CFA_def_cfa_offset,
                       new_cfa_offset, 0x0, &dw_error);
@@ -113,8 +113,8 @@ Build_Fde_For_Proc (Dwarf_P_Debug dw_dbg, BB *firstbb,
     // data alignment factor
     INT d_align = 4;
     dwarf_add_fde_inst (fde, DW_CFA_advance_loc4,
-                        callee_saved_reg - adjustsp_label,
-                        0, &dw_error);
+                        adjustsp_label, callee_saved_reg,
+                        &dw_error);
     for (INT i = num - 1; i >= 0; i --) {
       TN* tn = Cgdwarf_Nth_Callee_Saved_Reg(i);
       ST* sym = Cgdwarf_Nth_Callee_Saved_Reg_Location(i);

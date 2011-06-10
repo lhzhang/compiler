@@ -1376,7 +1376,14 @@ _dwarf_frame_fde_add_inst(Dwarf_P_Fde fde, Dwarf_Small op, Dwarf_Unsigned val1,
 		RCHECK(WRITE_VALUE(val1, 2));
 		break;
 	case DW_CFA_advance_loc4:
+                // HACK: val1/val2 are symbol indexes that are used
+                // for relocation creation later on
+#if 0
 		RCHECK(WRITE_VALUE(val1, 4));
+#else
+		RCHECK(WRITE_VALUE(val1, 2));
+		RCHECK(WRITE_VALUE(val2, 2));
+#endif
 		break;
 	case DW_CFA_offset_extended:
 	case DW_CFA_def_cfa:
@@ -1583,8 +1590,137 @@ _dwarf_frame_gen_fde(Dwarf_P_Debug dbg, Dwarf_P_Section ds,
 		} while (*++augment);
 	}
 
+        /* HACK */
+        // We write the DW_CFA_advance_loc4 as a pair of two 16bit symbol
+        // indexes and then traverse the fde_inst writing out the instructions.
+        // When we encounted DW_CFA_advance_loc4 we write out the reloc_pair
+        // between those two symbols.
+	uint8_t *p = fde->fde_inst;
+	uint8_t *ps = fde->fde_inst;
+	uint8_t *pe = p + fde->fde_instlen;
+        uint64_t tmp;
+
+	while (p < pe) {
+                ps = p;
+
+		if (*p == DW_CFA_nop) {
+			p++;
+			RCHECK(WRITE_BLOCK(ps, p - ps));
+			continue;
+		}
+
+		uint8_t high2 = *p & 0xc0;
+		uint8_t low6 = *p & 0x3f;
+		p++;
+
+		if (high2 > 0) {
+			switch (high2) {
+			case DW_CFA_advance_loc:
+				break;
+			case DW_CFA_offset:
+				_dwarf_decode_uleb128(&p);
+				break;
+			case DW_CFA_restore:
+			default:
+			continue;
+                        }
+			RCHECK(WRITE_BLOCK(ps, p - ps));
+                        continue;
+		}
+
+                int adv = 0;
+		switch (low6) {
+		case DW_CFA_set_loc:
+			p += dbg->dbg_pointer_size;
+			break;
+		case DW_CFA_advance_loc1:
+			p += 1;
+			break;
+		case DW_CFA_advance_loc2:
+			p += 2;
+			break;
+		case DW_CFA_advance_loc4:
+                        // HACK: emit the reloc here!
+                        adv = 1;
+			tmp = _dwarf_decode_lsb(&p, 4);
+			RCHECK(WRITE_VALUE(DW_CFA_advance_loc4, 1));
+		RCHECK(_dwarf_reloc_entry_add_pair(dbg, drs, ds,
+		    4, ds->ds_size, tmp & 0xffff,
+		    (tmp & 0xffff0000) >> 16, 0, 0, error));
+			break;
+		case DW_CFA_offset_extended:
+			_dwarf_decode_uleb128(&p);
+			_dwarf_decode_uleb128(&p);
+			break;
+		case DW_CFA_restore_extended:
+			_dwarf_decode_uleb128(&p);
+			break;
+		case DW_CFA_undefined:
+			_dwarf_decode_uleb128(&p);
+			break;
+		case DW_CFA_same_value:
+			_dwarf_decode_uleb128(&p);
+			break;
+		case DW_CFA_register:
+			_dwarf_decode_uleb128(&p);
+			_dwarf_decode_uleb128(&p);
+			break;
+		case DW_CFA_remember_state:
+			break;
+		case DW_CFA_restore_state:
+			break;
+		case DW_CFA_def_cfa:
+			_dwarf_decode_uleb128(&p);
+			_dwarf_decode_uleb128(&p);
+			break;
+		case DW_CFA_def_cfa_register:
+			_dwarf_decode_uleb128(&p);
+			break;
+		case DW_CFA_def_cfa_offset:
+			_dwarf_decode_uleb128(&p);
+			break;
+		case DW_CFA_def_cfa_expression:
+			tmp = _dwarf_decode_uleb128(&p);
+			p += tmp;
+			break;
+		case DW_CFA_expression:
+			_dwarf_decode_uleb128(&p);
+			tmp = _dwarf_decode_uleb128(&p);
+			p += tmp;
+			break;
+		case DW_CFA_offset_extended_sf:
+			_dwarf_decode_uleb128(&p);
+			_dwarf_decode_sleb128(&p);
+			break;
+		case DW_CFA_def_cfa_sf:
+			_dwarf_decode_uleb128(&p);
+			_dwarf_decode_sleb128(&p);
+			break;
+		case DW_CFA_def_cfa_offset_sf:
+			_dwarf_decode_sleb128(&p);
+			break;
+		case DW_CFA_val_offset:
+			_dwarf_decode_uleb128(&p);
+			_dwarf_decode_uleb128(&p);
+			break;
+		case DW_CFA_val_offset_sf:
+			_dwarf_decode_uleb128(&p);
+			_dwarf_decode_sleb128(&p);
+			break;
+		case DW_CFA_val_expression:
+			_dwarf_decode_uleb128(&p);
+			tmp = _dwarf_decode_uleb128(&p);
+			p += tmp;
+			break;
+		default:
+                        break;
+		}
+                if (!adv)
+			RCHECK(WRITE_BLOCK(ps, p - ps));
+	}
+
 	/* Write FDE frame instructions. */
-	RCHECK(WRITE_BLOCK(fde->fde_inst, fde->fde_instlen));
+//	RCHECK(WRITE_BLOCK(fde->fde_inst, fde->fde_instlen));
 
 	/* Add padding. */
 	len = ds->ds_size - fde->fde_offset - 4;
