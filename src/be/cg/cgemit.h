@@ -52,7 +52,7 @@ extern void EMT_Begin_File (
 extern void EMT_End_File ( void );
 
 /* Emit the contents of a PU: */
-extern void EMT_Emit_PU ( ST *pu, DST_IDX pu_dst, WN *rwn);
+extern void EMT_Emit_PU ( FILE *asm_file, ST *pu, DST_IDX pu_dst, WN *rwn);
 
 /* put symbol in elf symbol table */ 
 #if defined(BUILD_OS_DARWIN)

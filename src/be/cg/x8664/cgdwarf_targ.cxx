@@ -75,14 +75,8 @@ Finalize_Unwind_Info(void)
 }
 
 /* construct the fde for the current procedure. */
-extern Dwarf_P_Fde
-Build_Fde_For_Proc (Dwarf_P_Debug dw_dbg, BB *firstbb,
-		    Dwarf_Unsigned begin_label,
-		    Dwarf_Unsigned end_label,
-		    Dwarf_Unsigned pushbp_label,
-		    Dwarf_Unsigned movespbp_label,
-		    Dwarf_Unsigned adjustsp_label,
-		    Dwarf_Unsigned callee_saved_reg,
+extern void
+Build_Fde_For_Proc (FILE *asm_file, Dwarf_P_Debug dw_dbg, BB *firstbb,
 		    INT32     end_offset,
 		    // The following two arguments need to go away
 		    // once libunwind gives us an interface that
@@ -91,35 +85,18 @@ Build_Fde_For_Proc (Dwarf_P_Debug dw_dbg, BB *firstbb,
 		    INT       high_pc)
 {
   Dwarf_Error dw_error;
-  Dwarf_P_Fde fde;
 
-  if ( ! CG_emit_unwind_info) return NULL;
+  if ( ! CG_emit_unwind_info) return;
 
-  fde = dwarf_new_fde (dw_dbg, &dw_error);
-
-  // Generate FDE instructions
-  dwarf_add_fde_inst (fde, DW_CFA_advance_loc4, 
-		      begin_label, movespbp_label, &dw_error);
-  dwarf_add_fde_inst (fde, DW_CFA_def_cfa_offset, 
-		      Is_Target_64bit() ? 0x10 : 0x8, 
-		      0x0, &dw_error);
-  dwarf_add_fde_inst (fde, DW_CFA_offset, Is_Target_64bit() ? 0x6 : 0x5, 
-		      0x2, &dw_error);
-  dwarf_add_fde_inst (fde, DW_CFA_advance_loc4, 
-		      movespbp_label, adjustsp_label, &dw_error);
-  dwarf_add_fde_inst (fde, DW_CFA_def_cfa_register, 
-		      Is_Target_64bit() ? 0x6 : 0x5, 0x0, &dw_error);
+  fprintf(asm_file, ".cfi_def_cfa_offset 16\n");
+  fprintf(asm_file, ".cfi_offset %u, %i\n", Is_Target_64bit() ? 6 : 5, 2*data_alignment_factor);
+  fprintf(asm_file, ".cfi_def_cfa_register %u\n", Is_Target_64bit() ? 6 : 5);
   if (Cgdwarf_Num_Callee_Saved_Regs()) {
     INT num = Cgdwarf_Num_Callee_Saved_Regs();    
-    dwarf_add_fde_inst (fde, DW_CFA_advance_loc4, 
-			adjustsp_label,
-			callee_saved_reg, &dw_error);
     for (INT i = num - 1; i >= 0; i --) {
       TN* tn = Cgdwarf_Nth_Callee_Saved_Reg(i);
       ST* sym = Cgdwarf_Nth_Callee_Saved_Reg_Location(i);
       INT n = Is_Target_64bit() ? 16 : 8;
-      // data alignment factor
-      INT d_align = Is_Target_64bit() ? 8 : 4;
       mUINT8 reg_id = REGISTER_machine_id (TN_register_class(tn), TN_register(tn));
       // If we need the DWARF register id's for all registers, we need a 
       // general register mapping from REGISTER_machine_id to DWARF register
@@ -132,17 +109,14 @@ Build_Fde_For_Proc (Dwarf_P_Debug dw_dbg, BB *firstbb,
       {
       	if (reg_id == 5) // %esi
 	  reg_id = 6;
-	else if (reg_id == 4) // %edi
+        else if (reg_id == 4) // %edi
 	  reg_id = 7;
       }
       if (reg_id == 1) reg_id = 3; // %rbx
-      dwarf_add_fde_inst (fde, DW_CFA_offset, reg_id,
-	          ((ST_base(sym) == FP_Sym ? -1 : 1)*ST_ofst(sym)+n)/d_align,
-	          &dw_error);
+      fprintf(asm_file, ".cfi_offset %u, %i\n", reg_id,
+              ((ST_base(sym) == FP_Sym ? -1 : 1)*ST_ofst(sym)+n));
     }
   }
-  
-  return fde;
 }
 
 

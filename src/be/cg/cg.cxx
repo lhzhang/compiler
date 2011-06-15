@@ -1027,7 +1027,7 @@ CG_Generate_Code(
      */
     Set_Error_Phase ( "Assembly" );
     Start_Timer (	T_Emit_CU );
-    EMT_Emit_PU (Get_Current_PU_ST(), pu_dst, rwn);
+    EMT_Emit_PU (Asm_File, Get_Current_PU_ST(), pu_dst, rwn);
     Check_for_Dump (TP_EMIT, NULL);
     Stop_Timer ( T_Emit_CU );
 

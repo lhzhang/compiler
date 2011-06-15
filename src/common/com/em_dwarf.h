@@ -89,21 +89,14 @@ extern void Em_Dwarf_Process_PU (Dwarf_Unsigned begin_label,
 				 Dwarf_Unsigned end_label,
 				 INT32          begin_offset,
 				 INT32          end_offset,
-				 Dwarf_P_Die    PU_die,
-				 Dwarf_P_Fde    fde,
-#ifdef KEY
-				 Dwarf_P_Fde    eh_fde,
-#endif
-				 Elf64_Word     eh_symindex,
-				 INT            eh_offset);
+				 Dwarf_P_Die    PU_die);
 #ifdef TARG_X8664
 /* To add FDEs for ALT ENTRY points for a PU (if any) */
 extern void Em_Dwarf_Add_PU_Entries (Dwarf_Unsigned begin_label,
 				     Dwarf_Unsigned end_label,
 				     INT32          begin_offset,
 				     INT32          end_offset,
-				     Dwarf_P_Die    PU_die,
-				     Dwarf_P_Fde    fde);
+				     Dwarf_P_Die    PU_die);
 #endif
 
 extern void Em_Dwarf_Start_Text_Region (pSCNINFO scninfo, INT start_offset);

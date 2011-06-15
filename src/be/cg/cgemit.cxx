@@ -7014,7 +7014,7 @@ Setup_Text_Section_For_PU (ST *pu)
  * ====================================================================
 */
 void
-EMT_Emit_PU ( ST *pu, DST_IDX pu_dst, WN *rwn )
+EMT_Emit_PU ( FILE *asm_file, ST *pu, DST_IDX pu_dst, WN *rwn )
 {
   ST *sym;
   ST *base;
@@ -7231,57 +7231,8 @@ EMT_Emit_PU ( ST *pu, DST_IDX pu_dst, WN *rwn )
 #endif  
 #endif
 
-  /* Assemble each basic block in the PU */
-  for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
-    Setup_Text_Section_For_BB(bb);
-    EMT_Assemble_BB (bb, rwn);
-  }
-
-#ifdef KEY
-  // Emit Last_Label at the end of the PU to guide Dwarf DW_AT_high_pc
-  fprintf( Asm_File, "%s:\n", LABEL_name(Last_Label));
-  Label_Last_BB_PU_Entry[pu_entries] = Last_Label;
-#if ! defined(BUILD_OS_DARWIN) && !defined(_WIN32)
-  // Mach-O as 1.38 doesn't support .size
-  // Bug 1275
-  fprintf( Asm_File, "\t.size %s, %s-%s\n", 
-	   ST_name_decorated(pu), LABEL_name(Last_Label),
-	   ST_name_decorated(pu));
-#endif /* defined(BUILD_OS_DARWIN) */
-#endif
-  /* Revert back to the text section to end the PU. */
-  Setup_Text_Section_For_BB(REGION_First_BB);
-  Is_True(PU_base == text_base, ("first region BB was not in text section"));
-
-  /* Emit the stuff needed at the end of the PU. */
-  const char *end = AS_END;
-  if (Assembly) {
-#ifdef TARG_MIPS
-    if (CG_emit_non_gas_syntax) {
-      fprintf ( Asm_File, "\t%s\t", AS_END);
-      EMT_Write_Qualified_Name(Asm_File, pu);
-      fputc ( '\n', Asm_File);
-    }
-    else
-#endif
-    if (end
-#ifdef KEY
-	&& ! CG_inhibit_size_directive
-#endif
-	    ) {
-      fprintf ( Asm_File, "\t%s\t", end);
-      EMT_Write_Qualified_Name(Asm_File, pu);
-      fputc ( '\n', Asm_File);
-    }
-  }
-  
-  /* Emit the initialized data associated with this PU. */
-  Process_Initos_And_Literals (CURRENT_SYMTAB);
-  Process_Bss_Data (CURRENT_SYMTAB);
-#ifdef KEY
-  Simd_Reallocate_Objects = FALSE;
-#endif
-
+  fprintf(asm_file, ".cfi_sections .debug_frame\n");
+  fprintf(asm_file, ".cfi_startproc\n");
   if (generate_dwarf) {
     Elf64_Word symindex;
     INT eh_offset;
@@ -7360,6 +7311,59 @@ EMT_Emit_PU ( ST *pu, DST_IDX pu_dst, WN *rwn )
 		Initial_Pu_PC, PC);
 #endif // TARG_X8664
   }
+
+
+  /* Assemble each basic block in the PU */
+  for (bb = REGION_First_BB; bb != NULL; bb = BB_next(bb)) {
+    Setup_Text_Section_For_BB(bb);
+    EMT_Assemble_BB (bb, rwn);
+  }
+  fprintf(asm_file, ".cfi_endproc\n");
+
+#ifdef KEY
+  // Emit Last_Label at the end of the PU to guide Dwarf DW_AT_high_pc
+  fprintf( Asm_File, "%s:\n", LABEL_name(Last_Label));
+  Label_Last_BB_PU_Entry[pu_entries] = Last_Label;
+#if ! defined(BUILD_OS_DARWIN) && !defined(_WIN32)
+  // Mach-O as 1.38 doesn't support .size
+  // Bug 1275
+  fprintf( Asm_File, "\t.size %s, %s-%s\n", 
+	   ST_name_decorated(pu), LABEL_name(Last_Label),
+	   ST_name_decorated(pu));
+#endif /* defined(BUILD_OS_DARWIN) */
+#endif
+  /* Revert back to the text section to end the PU. */
+  Setup_Text_Section_For_BB(REGION_First_BB);
+  Is_True(PU_base == text_base, ("first region BB was not in text section"));
+
+  /* Emit the stuff needed at the end of the PU. */
+  const char *end = AS_END;
+  if (Assembly) {
+#ifdef TARG_MIPS
+    if (CG_emit_non_gas_syntax) {
+      fprintf ( Asm_File, "\t%s\t", AS_END);
+      EMT_Write_Qualified_Name(Asm_File, pu);
+      fputc ( '\n', Asm_File);
+    }
+    else
+#endif
+    if (end
+#ifdef KEY
+	&& ! CG_inhibit_size_directive
+#endif
+	    ) {
+      fprintf ( Asm_File, "\t%s\t", end);
+      EMT_Write_Qualified_Name(Asm_File, pu);
+      fputc ( '\n', Asm_File);
+    }
+  }
+  
+  /* Emit the initialized data associated with this PU. */
+  Process_Initos_And_Literals (CURRENT_SYMTAB);
+  Process_Bss_Data (CURRENT_SYMTAB);
+#ifdef KEY
+  Simd_Reallocate_Objects = FALSE;
+#endif
 
   if (Run_prompf) {
     fputc ('\n', anl_file);

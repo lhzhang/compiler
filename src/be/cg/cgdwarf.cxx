@@ -2526,10 +2526,6 @@ Cg_Dwarf_Process_PU (Elf64_Word	scn_index,
   DST_INFO *info;
   Dwarf_P_Die PU_die;
   Dwarf_P_Expr expr;
-  Dwarf_P_Fde fde;
-#if defined(KEY)
-  Dwarf_P_Fde eh_fde = 0;
-#endif
   DST_SUBPROGRAM *PU_attr;
   static BOOL processed_globals = FALSE;
   
@@ -2645,49 +2641,38 @@ Cg_Dwarf_Process_PU (Elf64_Word	scn_index,
   }
 
   Dwarf_Unsigned begin_entry = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-						     begin_label,
-						     scn_index);
+		                                     begin_label,
+		                                     scn_index);
   Dwarf_Unsigned end_entry   = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-						     end_label,
-						     scn_index);
-
+		                                     end_label,
+		                                     scn_index);
 #ifdef TARG_X8664
-  Dwarf_Unsigned pushbp_entry = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-						      eh_pushbp_label[0],
-						      scn_index);
-  Dwarf_Unsigned movespbp_entry   = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-							  eh_movespbp_label[0],
-							  scn_index);
-  Dwarf_Unsigned adjustsp_entry   = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-							  eh_adjustsp_label[0],
-							  scn_index);
   Dwarf_Unsigned callee_saved_reg;
   INT num_callee_saved_regs;
   if (num_callee_saved_regs = Cgdwarf_Num_Callee_Saved_Regs())
     callee_saved_reg = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-					     eh_callee_saved_reg[0],
-					     scn_index);      
-  fde = Build_Fde_For_Proc (dw_dbg, REGION_First_BB,
-			    begin_entry,
-			    end_entry,
-			    pushbp_entry,
-			    movespbp_entry,
-			    adjustsp_entry,
-			    callee_saved_reg,
-			    end_offset,
-			    low_pc, high_pc);  
+                                            eh_callee_saved_reg[0],
+                                            scn_index);      
+
+  Build_Fde_For_Proc (Asm_File, dw_dbg, REGION_First_BB,
+		      end_offset,
+		      low_pc, high_pc);  
 
   // Generate .eh_frame FDE only for C++ or when -DEBUG:eh_frame=on
-  if (Dwarf_Language == DW_LANG_C_plus_plus || DEBUG_Emit_Ehframe)
-    eh_fde = Build_Fde_For_Proc (dw_dbg, REGION_First_BB,
-				 begin_entry,
-			    	 end_entry,
-			    	 pushbp_entry,
-			    	 movespbp_entry,
-			    	 adjustsp_entry,
-			    	 callee_saved_reg,
-			    	 end_offset,
-			    	 low_pc, high_pc);  
+  if (Dwarf_Language == DW_LANG_C_plus_plus || DEBUG_Emit_Ehframe) {
+    const char *personality = "__gxx_personality_v0";
+    unsigned personality_encoding = 3;
+    unsigned lsda_encoding = 3;
+    if (Gen_PIC_Call_Shared || Gen_PIC_Shared) {
+      personality = "DW.ref.__gxx_personality_v0";
+      lsda_encoding = 0x1b;
+      personality_encoding = 0x9b;
+    }
+    if (eh_offset != DW_DLX_NO_EH_OFFSET) {
+      fprintf(Asm_File, ".cfi_lsda %u, .range_table.%s\n", lsda_encoding, ST_name(PU_st));
+      fprintf(Asm_File, ".cfi_personality %u, %s\n", personality_encoding, personality);
+    }
+  }
 #elif defined(TARG_MIPS)
   Dwarf_Unsigned adjustsp_entry = 0;
   
@@ -2741,53 +2726,25 @@ Cg_Dwarf_Process_PU (Elf64_Word	scn_index,
 		       end_entry,
 		       0,	// begin_offset
 		       end_offset,
-		       PU_die,
-		       fde,
-#if defined(KEY)
-		       eh_fde,
-#endif
-		       eh_handle,
-		       eh_offset);
+		       PU_die);
 #ifdef TARG_X8664
   if (pu_entries > 1) {
     FmtAssert(Dwarf_Language == DW_LANG_Fortran77 ||
               Dwarf_Language == DW_LANG_Fortran90, 
 	      ("Dwarf handler: > 1 PU entry in a non-Fortran language"));
     for (INT pu_entry = 1; pu_entry <= pu_entries; pu_entry ++) {
-      begin_entry = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-					  first_bb_labels[pu_entry],
-					  scn_index);
-      end_entry   = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-					  last_bb_labels[pu_entry],
-					  scn_index);
-      pushbp_entry = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-					   eh_pushbp_label[pu_entry],
-					   scn_index);
-      movespbp_entry   = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-					       eh_movespbp_label[pu_entry],
-					       scn_index);
-      adjustsp_entry   = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-					       eh_adjustsp_label[pu_entry],
-					       scn_index);
       if (num_callee_saved_regs = Cgdwarf_Num_Callee_Saved_Regs())
-	callee_saved_reg = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-						 eh_callee_saved_reg[pu_entry],
-						 scn_index);      
-      fde = Build_Fde_For_Proc (dw_dbg, REGION_First_BB,
-				begin_entry,
-				end_entry,
-				pushbp_entry,
-				movespbp_entry,
-				adjustsp_entry,
-				callee_saved_reg,
-				end_offset,
-				low_pc, high_pc);  
+                          callee_saved_reg = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
+                                        eh_callee_saved_reg[pu_entry],
+                                        scn_index);      
+      Build_Fde_For_Proc (Asm_File, dw_dbg, REGION_First_BB,
+			end_offset,
+			low_pc, high_pc);  
       Em_Dwarf_Add_PU_Entries (begin_entry,
 			       end_entry,
 			       0,	// begin_offset
 			       end_offset,
-			       PU_die,
-			       fde);
+			       PU_die);
     }
   }
 #endif
