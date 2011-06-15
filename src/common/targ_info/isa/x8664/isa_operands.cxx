@@ -3494,6 +3494,20 @@ main()
 		    TOP_UNDEFINED);
   Result(0, rax);
   Operand(0, simm32, offset);
+
+  /* CFI */
+
+  Instruction_Group("cfi_one_arg",
+		    TOP_cfi_def_cfa_offset,
+		    TOP_cfi_def_cfa_register,
+		    TOP_UNDEFINED);
+  Operand(0, simm32, offset);
+
+  Instruction_Group("cfi_two_arg",
+		    TOP_cfi_offset,
+		    TOP_UNDEFINED);
+  Operand(0, simm32, offset);
+  Operand(1, simm32, target);
   
   ISA_Operands_End();
   return 0;

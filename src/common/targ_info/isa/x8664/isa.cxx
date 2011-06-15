@@ -1396,6 +1396,11 @@ main ()
 	      "tls_get_addr_64",
 	      "tls_get_addr_32",
 
+              /* CFI */
+              "cfi_def_cfa_offset",
+              "cfi_offset",
+              "cfi_def_cfa_register",
+
 	      /* END */
 	      NULL);
 }

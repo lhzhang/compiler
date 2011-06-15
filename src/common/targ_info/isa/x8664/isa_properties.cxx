@@ -147,7 +147,8 @@ main()
     vector_packed_single,  /* SSE packed single-precision FPU op */
     vector_packed_double,  /* SSE packed double-precision FPU op */
     vector_avx,			  /*AVX vector  256-bit operation*/
-    cast_vector;	    /*for cast from 256 vector to 128*/
+    cast_vector,	    /*for cast from 256 vector to 128*/
+    cfi;                /* CFI */
   
 
   ISA_Properties_Begin ("x8664");
@@ -4479,6 +4480,13 @@ main()
                      TOP_vaddpd,
 #include "isa_avx_properties_avx_vector.cxx"
 		     TOP_UNDEFINED);
+
+  cfi = ISA_Property_Create ("cfi");
+  Instruction_Group (cfi,
+                     TOP_cfi_def_cfa_offset,
+                     TOP_cfi_def_cfa_register,
+                     TOP_cfi_offset,
+                     TOP_UNDEFINED);
 
   ISA_Properties_End();
 

@@ -74,9 +74,15 @@ Finalize_Unwind_Info(void)
   return;
 }
 
+// XXX: this must be emitted somewhere else as we do this before
+// the prologue of pushq %rbp; movq %rsp, %rbp
+//
+// we need to put it there also, the register savings must be done
+// with .cfi in mind
+
 /* construct the fde for the current procedure. */
 extern void
-Build_Fde_For_Proc (FILE *asm_file, Dwarf_P_Debug dw_dbg, BB *firstbb,
+Build_Fde_For_Proc (Dwarf_P_Debug dw_dbg, BB *firstbb,
 		    INT32     end_offset,
 		    // The following two arguments need to go away
 		    // once libunwind gives us an interface that
@@ -84,39 +90,7 @@ Build_Fde_For_Proc (FILE *asm_file, Dwarf_P_Debug dw_dbg, BB *firstbb,
 		    INT       low_pc,
 		    INT       high_pc)
 {
-  Dwarf_Error dw_error;
-
-  if ( ! CG_emit_unwind_info) return;
-
-  fprintf(asm_file, ".cfi_def_cfa_offset 16\n");
-  fprintf(asm_file, ".cfi_offset %u, %i\n", Is_Target_64bit() ? 6 : 5, 2*data_alignment_factor);
-  fprintf(asm_file, ".cfi_def_cfa_register %u\n", Is_Target_64bit() ? 6 : 5);
-  if (Cgdwarf_Num_Callee_Saved_Regs()) {
-    INT num = Cgdwarf_Num_Callee_Saved_Regs();    
-    for (INT i = num - 1; i >= 0; i --) {
-      TN* tn = Cgdwarf_Nth_Callee_Saved_Reg(i);
-      ST* sym = Cgdwarf_Nth_Callee_Saved_Reg_Location(i);
-      INT n = Is_Target_64bit() ? 16 : 8;
-      mUINT8 reg_id = REGISTER_machine_id (TN_register_class(tn), TN_register(tn));
-      // If we need the DWARF register id's for all registers, we need a 
-      // general register mapping from REGISTER_machine_id to DWARF register
-      // id. But the following suffices for this case,
-      // The machine_id is the same as the DWARF id for all callee-saved 
-      // registers except rbx, so give it the proper id here.
-      //
-      // And for -m32, handle the 2 additional callee-saved registers
-      if (Is_Target_32bit())
-      {
-      	if (reg_id == 5) // %esi
-	  reg_id = 6;
-        else if (reg_id == 4) // %edi
-	  reg_id = 7;
-      }
-      if (reg_id == 1) reg_id = 3; // %rbx
-      fprintf(asm_file, ".cfi_offset %u, %i\n", reg_id,
-              ((ST_base(sym) == FP_Sym ? -1 : 1)*ST_ofst(sym)+n));
-    }
-  }
+  return;
 }
 
 

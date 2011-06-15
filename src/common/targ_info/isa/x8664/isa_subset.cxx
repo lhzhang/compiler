@@ -1328,6 +1328,9 @@ main()
               TOP_vldapd_n32,
              TOP_vaddpd,
 #include "isa_avx_subset.cxx"
+             TOP_cfi_def_cfa_offset,
+             TOP_cfi_def_cfa_register,
+             TOP_cfi_offset,
 		    TOP_UNDEFINED);
 
   ISA_Subset_End();

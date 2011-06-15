@@ -1313,6 +1313,9 @@ main()
 #include "isa_avx_pack.cxx"
 		    TOP_tls_get_addr_64,  0x000000ff,
 		    TOP_tls_get_addr_32,  0x000000ff,
+                    TOP_cfi_def_cfa_offset, 0x000000ff,
+                    TOP_cfi_def_cfa_register, 0x000000ff,
+                    TOP_cfi_offset, 0x000000ff,
 		    TOP_UNDEFINED);
 
   ISA_Pack_End();

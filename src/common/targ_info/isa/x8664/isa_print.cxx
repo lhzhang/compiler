@@ -1879,5 +1879,22 @@ main()
 
 #include "isa_avx_print.cxx"
 
+  /* CFI */
+  ISA_PRINT_TYPE cfi_one_arg = ISA_Print_Type_Create("cfi_one_arg", ".%s %s");
+  Name();
+  Operand(0);
+  Instruction_Print_Group(cfi_one_arg,
+                          TOP_cfi_def_cfa_offset,
+                          TOP_cfi_def_cfa_register,
+                          TOP_UNDEFINED);
+
+  ISA_PRINT_TYPE cfi_two_arg = ISA_Print_Type_Create("cfi_one_arg", ".%s %s, %s");
+  Name();
+  Operand(0);
+  Operand(1);
+  Instruction_Print_Group(cfi_two_arg,
+                          TOP_cfi_offset,
+                          TOP_UNDEFINED);
+
   ISA_Print_End();
 }

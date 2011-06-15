@@ -2654,10 +2654,6 @@ Cg_Dwarf_Process_PU (Elf64_Word	scn_index,
                                             eh_callee_saved_reg[0],
                                             scn_index);      
 
-  Build_Fde_For_Proc (Asm_File, dw_dbg, REGION_First_BB,
-		      end_offset,
-		      low_pc, high_pc);  
-
   // Generate .eh_frame FDE only for C++ or when -DEBUG:eh_frame=on
   if (Dwarf_Language == DW_LANG_C_plus_plus || DEBUG_Emit_Ehframe) {
     const char *personality = "__gxx_personality_v0";
@@ -2737,9 +2733,7 @@ Cg_Dwarf_Process_PU (Elf64_Word	scn_index,
                           callee_saved_reg = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
                                         eh_callee_saved_reg[pu_entry],
                                         scn_index);      
-      Build_Fde_For_Proc (Asm_File, dw_dbg, REGION_First_BB,
-			end_offset,
-			low_pc, high_pc);  
+      // XXX: .cfi_startproc and .cfi_endproc in this case?
       Em_Dwarf_Add_PU_Entries (begin_entry,
 			       end_entry,
 			       0,	// begin_offset

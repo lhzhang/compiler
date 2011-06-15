@@ -36,7 +36,7 @@ extern BOOL Trace_Dwarf;
 
 /* construct the fde for the current procedure. */
 #ifdef TARG_X8664
-extern void Build_Fde_For_Proc (FILE *asm_file, Dwarf_P_Debug  dw_dbg,
+extern void Build_Fde_For_Proc (Dwarf_P_Debug  dw_dbg,
 				BB         *firstbb,
 				INT32          end_offset,
 				// The following two arguments
