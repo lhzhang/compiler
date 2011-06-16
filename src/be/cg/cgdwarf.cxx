@@ -2641,18 +2641,19 @@ Cg_Dwarf_Process_PU (Elf64_Word	scn_index,
   }
 
   Dwarf_Unsigned begin_entry = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-		                                     begin_label,
-		                                     scn_index);
+						     begin_label,
+						     scn_index);
   Dwarf_Unsigned end_entry   = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-		                                     end_label,
-		                                     scn_index);
+						     end_label,
+						     scn_index);
+
 #ifdef TARG_X8664
   Dwarf_Unsigned callee_saved_reg;
   INT num_callee_saved_regs;
   if (num_callee_saved_regs = Cgdwarf_Num_Callee_Saved_Regs())
     callee_saved_reg = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-                                            eh_callee_saved_reg[0],
-                                            scn_index);      
+					     eh_callee_saved_reg[0],
+					     scn_index);      
 
   // Generate .eh_frame FDE only for C++ or when -DEBUG:eh_frame=on
   if (Dwarf_Language == DW_LANG_C_plus_plus || DEBUG_Emit_Ehframe) {
@@ -2730,9 +2731,9 @@ Cg_Dwarf_Process_PU (Elf64_Word	scn_index,
 	      ("Dwarf handler: > 1 PU entry in a non-Fortran language"));
     for (INT pu_entry = 1; pu_entry <= pu_entries; pu_entry ++) {
       if (num_callee_saved_regs = Cgdwarf_Num_Callee_Saved_Regs())
-                          callee_saved_reg = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-                                        eh_callee_saved_reg[pu_entry],
-                                        scn_index);      
+	callee_saved_reg = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
+						 eh_callee_saved_reg[pu_entry],
+						 scn_index);      
       // XXX: .cfi_startproc and .cfi_endproc in this case?
       Em_Dwarf_Add_PU_Entries (begin_entry,
 			       end_entry,
