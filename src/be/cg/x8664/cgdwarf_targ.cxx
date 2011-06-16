@@ -73,25 +73,6 @@ Finalize_Unwind_Info(void)
 {
   return;
 }
-
-// XXX: this must be emitted somewhere else as we do this before
-// the prologue of pushq %rbp; movq %rsp, %rbp
-//
-// we need to put it there also, the register savings must be done
-// with .cfi in mind
-
-/* construct the fde for the current procedure. */
-extern void
-Build_Fde_For_Proc (Dwarf_P_Debug dw_dbg, BB *firstbb,
-		    INT32     end_offset,
-		    // The following two arguments need to go away
-		    // once libunwind gives us an interface that
-		    // supports symbolic ranges.
-		    INT       low_pc,
-		    INT       high_pc)
-{
-  return;
-}
 
 
 void

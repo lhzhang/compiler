@@ -2647,7 +2647,6 @@ Cg_Dwarf_Process_PU (Elf64_Word	scn_index,
 						     end_label,
 						     scn_index);
 
-#ifdef TARG_X8664
   Dwarf_Unsigned callee_saved_reg;
   INT num_callee_saved_regs;
   if (num_callee_saved_regs = Cgdwarf_Num_Callee_Saved_Regs())
@@ -2670,45 +2669,6 @@ Cg_Dwarf_Process_PU (Elf64_Word	scn_index,
       fprintf(Asm_File, ".cfi_personality %u, %s\n", personality_encoding, personality);
     }
   }
-#elif defined(TARG_MIPS)
-  Dwarf_Unsigned adjustsp_entry = 0;
-  
-  if (eh_adjustsp_label[0] != LABEL_IDX_ZERO)
-    adjustsp_entry = Cg_Dwarf_Symtab_Entry(CGD_LABIDX, eh_adjustsp_label[0],
-                                           scn_index);
-  Dwarf_Unsigned callee_saved_reg = 0;
-  if (Cgdwarf_Num_Callee_Saved_Regs() &&
-      eh_callee_saved_reg[0] != LABEL_IDX_ZERO)
-    callee_saved_reg = Cg_Dwarf_Symtab_Entry(CGD_LABIDX,
-					     eh_callee_saved_reg[0],
-					     scn_index);      
-  fde = Build_Fde_For_Proc (dw_dbg, REGION_First_BB,
-			    begin_entry,
-			    end_entry,
-			    adjustsp_entry,
-			    callee_saved_reg,
-			    new_cfa_offset,
-			    end_offset,
-			    low_pc, high_pc);  
-
-  // Generate .eh_frame FDE only for C++ or when -DEBUG:eh_frame=on
-  if (Dwarf_Language == DW_LANG_C_plus_plus || DEBUG_Emit_Ehframe)
-    eh_fde = Build_Fde_For_Proc (dw_dbg, REGION_First_BB,
-                                 begin_entry,
-                                 end_entry,
-                                 adjustsp_entry,
-                                 callee_saved_reg,
-                                 new_cfa_offset,
-                                 end_offset,
-                                 low_pc, high_pc);  
-#else
-  fde = Build_Fde_For_Proc (dw_dbg, REGION_First_BB,
-			    begin_entry,
-			    end_entry,
-			    end_offset,
-			    low_pc, high_pc);
-
-#endif // TARG_X8664
 
   Dwarf_Unsigned eh_handle;
 

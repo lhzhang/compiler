@@ -73,65 +73,6 @@ Emit_Unwind_Directives_For_OP(OP *op, FILE *f)
 }
 
 
-/* construct the fde for the current procedure. */
-extern Dwarf_P_Fde
-Build_Fde_For_Proc (Dwarf_P_Debug dw_dbg, BB *firstbb,
-		    Dwarf_Unsigned begin_label,
-		    Dwarf_Unsigned end_label,
-		    Dwarf_Unsigned adjustsp_label,
-		    Dwarf_Unsigned callee_saved_reg,
-		    INT32     new_cfa_offset,
-		    INT32     end_offset,
-		    // The following two arguments need to go away
-		    // once libunwind gives us an interface that
-		    // supports symbolic ranges.
-		    INT       low_pc,
-		    INT       high_pc)
-{
-  Dwarf_Error dw_error;
-  Dwarf_P_Fde fde;
-
-  if ( ! CG_emit_unwind_info) return NULL;
-
-  fde = dwarf_new_fde (dw_dbg, &dw_error);
-
-  // If there was no SP adjustment, then no need to generate dummy
-  // DWARF instructions (bug 12568). In such a scenario, the FDE
-  // should only contain the start location, and the address range.
-  if (adjustsp_label == 0)
-    return fde;
-
-  // Generate FDE instructions
-  dwarf_add_fde_inst (fde, DW_CFA_advance_loc4,
-                      begin_label, adjustsp_label, &dw_error);
-
-  dwarf_add_fde_inst (fde, DW_CFA_def_cfa_offset,
-                      new_cfa_offset, 0x0, &dw_error);
-
-  if (Cgdwarf_Num_Callee_Saved_Regs() && callee_saved_reg) {
-    INT num = Cgdwarf_Num_Callee_Saved_Regs();
-    // data alignment factor
-    INT d_align = 4;
-    dwarf_add_fde_inst (fde, DW_CFA_advance_loc4,
-                        adjustsp_label,
-                        callee_saved_reg, &dw_error);
-    for (INT i = num - 1; i >= 0; i --) {
-      TN* tn = Cgdwarf_Nth_Callee_Saved_Reg(i);
-      ST* sym = Cgdwarf_Nth_Callee_Saved_Reg_Location(i);
-      PREG_NUM reg_id = TN_To_Assigned_PREG (tn);
-      Dwarf_Signed ofst = (Dwarf_Signed)(ST_ofst(sym) - new_cfa_offset)/d_align;
-      dwarf_add_fde_inst_with_signed_offset (fde,
-                                             DW_CFA_offset_extended_sf,
-                                             reg_id,
-                                             ofst,
-                                             &dw_error);
-    }
-  }
-
-  return fde;
-}
-
-
 void
 Check_Dwarf_Rel(const Elf32_Rel &current_reloc)
 {
