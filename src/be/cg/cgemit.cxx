@@ -7231,7 +7231,6 @@ EMT_Emit_PU ( FILE *asm_file, ST *pu, DST_IDX pu_dst, WN *rwn )
 #endif  
 #endif
 
-  fprintf(asm_file, ".cfi_sections .debug_frame\n");
   fprintf(asm_file, ".cfi_startproc\n");
   if (generate_dwarf) {
     Elf64_Word symindex;
