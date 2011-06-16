@@ -1913,7 +1913,8 @@ cwh_addr_address_ST(ST * st, OFFSET_64 off, TY_IDX ty)
   case SCLASS_FORMAL:
 
 #ifdef KEY /* Bug 14150 */
-    if (ST_is_value_parm(st) && !ST_auxst_is_rslt_tmp(st)) {
+    if (ST_is_value_parm(st) && !ST_auxst_is_rslt_tmp(st) &&
+        !((TY_kind(ty) == KIND_POINTER) && (TY_kind(TY_pointed(ty)) == KIND_FUNCTION))) {
        wn = cwh_addr_lda(st,off,ty);
        return wn;
     }

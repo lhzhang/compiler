@@ -104,13 +104,34 @@ module iso_c_binding
   ! Requires type checking in front end code in s_intrin.c
 
   interface c_f_pointer
-    subroutine c_f_pointera(cptr, fptr, shape)
+    subroutine c_f_pointera1(cptr, fptr, shape)
       import :: c_ptr
       type(c_ptr), intent(in) :: cptr
 !dir$ ignore_tkr fptr
       ANYTYPE, pointer, dimension(:,:,:,:,:,:,:), intent(out) :: fptr
-      integer, dimension(*), intent(in) :: shape
-    end subroutine c_f_pointera
+      integer(kind=1), dimension(*), intent(in) :: shape
+    end subroutine c_f_pointera1
+    subroutine c_f_pointera2(cptr, fptr, shape)
+      import :: c_ptr
+      type(c_ptr), intent(in) :: cptr
+!dir$ ignore_tkr fptr
+      ANYTYPE, pointer, dimension(:,:,:,:,:,:,:), intent(out) :: fptr
+      integer(kind=2), dimension(*), intent(in) :: shape
+    end subroutine c_f_pointera2
+    subroutine c_f_pointera4(cptr, fptr, shape)
+      import :: c_ptr
+      type(c_ptr), intent(in) :: cptr
+!dir$ ignore_tkr fptr
+      ANYTYPE, pointer, dimension(:,:,:,:,:,:,:), intent(out) :: fptr
+      integer(kind=4), dimension(*), intent(in) :: shape
+    end subroutine c_f_pointera4
+    subroutine c_f_pointera8(cptr, fptr, shape)
+      import :: c_ptr
+      type(c_ptr), intent(in) :: cptr
+!dir$ ignore_tkr fptr
+      ANYTYPE, pointer, dimension(:,:,:,:,:,:,:), intent(out) :: fptr
+      integer(kind=8), dimension(*), intent(in) :: shape
+    end subroutine c_f_pointera8
     subroutine c_f_pointers(cptr, fptr)
       import :: c_ptr
       type(c_ptr), intent(in) :: cptr

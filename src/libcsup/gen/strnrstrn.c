@@ -84,6 +84,6 @@ strnrstrn(const char *string, size_t lenstr, const char *substr, size_t lensub)
 
 	if (i < 0)
 		return(NULL);
-	else
-		return( (char *) string + i - lensub);
+
+	return( (char *) string + i - lensub);
 }

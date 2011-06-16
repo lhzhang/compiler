@@ -581,7 +581,10 @@ static imt_entry intrinsic_module_table[] = {
    * result is a derived type. */
   { "C_FUNLOC",				imt_inline, C_Funloc_Intrinsic},
   { "C_FUNPTR",				imt_type,   Unknown_Intrinsic},
-  { "C_F_POINTERA",			imt_extern, C_F_Pointer_Intrinsic},
+  { "C_F_POINTERA1",			imt_extern, C_F_Pointer_Intrinsic},
+  { "C_F_POINTERA2",			imt_extern, C_F_Pointer_Intrinsic},
+  { "C_F_POINTERA4",			imt_extern, C_F_Pointer_Intrinsic},
+  { "C_F_POINTERA8",			imt_extern, C_F_Pointer_Intrinsic},
   { "C_F_POINTERS",			imt_extern, C_F_Pointer_Intrinsic},
   { "C_F_PROCPOINTER",			imt_inline, C_F_Procpointer_Intrinsic},
   { "C_LOC",				imt_extern, C_Loc_Iso_Intrinsic},
