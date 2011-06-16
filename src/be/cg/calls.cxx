@@ -2037,13 +2037,37 @@ Adjust_Entry(BB *bb)
 #ifdef TARG_X8664
   if (CG_push_pop_int_saved_regs && ! Gen_Frame_Pointer) {
     OPS ops = OPS_EMPTY;
-    // XXX: emit .cfi_offset here
+    // This also emits the .cfi_offset directives for the registers we save.
     for (INT i = 0; i < Saved_Callee_Saved_Regs.Elements(); i++) {
       SAVE_REG_LOC sr = Saved_Callee_Saved_Regs.Top_nth(i);
+      TN* tn = Cgdwarf_Nth_Callee_Saved_Reg(i);
+      ST* sym = Cgdwarf_Nth_Callee_Saved_Reg_Location(i);
+      INT n = Is_Target_64bit() ? 16 : 8;
+      mUINT8 reg_id = REGISTER_machine_id (TN_register_class(tn),
+                                           TN_register(tn));
+
       if (sr.temp != NULL)
 	continue;
       Build_OP(Is_Target_64bit() ? TOP_pushq : TOP_pushl, SP_TN, sr.ded_tn, 
       	       SP_TN, &ops);
+      // If we need the DWARF register id's for all registers, we need a 
+      // general register mapping from REGISTER_machine_id to DWARF register
+      // id. But the following suffices for this case,
+      // The machine_id is the same as the DWARF id for all callee-saved 
+      // registers except rbx, so give it the proper id here.
+      //
+      // And for -m32, handle the 2 additional callee-saved registers
+      if (Is_Target_32bit())
+      { 
+        if (reg_id == 5) // %esi
+          reg_id = 6;
+        else if (reg_id == 4) // %edi
+          reg_id = 7;
+      }
+      if (reg_id == 1) reg_id = 3; // %rbx
+      Build_OP( TOP_cfi_offset, Gen_Literal_TN(reg_id, 4),
+          Gen_Literal_TN(((ST_base(sym) == FP_Sym ? -1 : 1)*ST_ofst(sym)+n), 4),
+          &ops);
     }
     BB_Insert_Ops_Before(bb, ent_adj, &ops);
   }
